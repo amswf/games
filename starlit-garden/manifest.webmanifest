@@ -1,0 +1,16 @@
+{
+  "name": "星光花园 · Starlit Garden",
+  "short_name": "星光花园",
+  "description": "一指轻触，把夜色慢慢点亮的解谜小游戏。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#06121C",
+  "theme_color": "#091329",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

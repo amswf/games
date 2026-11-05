@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#FDEBD2">
+<title>TENDRIL — grow gently · graze bravely</title>
+<style>
+  :root{
+    --ink:#43503E; --dim:#8A9478; --cream:#FFFDF6; --gold:#FFB84C; --coral:#F07A5A;
+    --leaf:#6FA96B; --card:rgba(255,252,242,.94); --sun:#FFC857;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{height:100%;overflow:hidden;background:#2E2A24;overscroll-behavior:none}
+  body{font-family:ui-rounded,-apple-system,"SF Pro Rounded","Segoe UI",system-ui,sans-serif;color:var(--ink)}
+  #stage{position:fixed;inset:0;margin:0 auto;max-width:520px;touch-action:none;overflow:hidden}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:calc(20px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+    transition:opacity .3s ease,transform .3s ease;z-index:5}
+  .screen.hidden{opacity:0;pointer-events:none;transform:scale(1.04)}
+  .btn{border:none;cursor:pointer;font-family:inherit;color:#fff;font-weight:800;font-size:19px;letter-spacing:.03em;
+    padding:16px 22px;border-radius:22px;background:linear-gradient(180deg,#8BC184,#5E9B5C);
+    box-shadow:0 6px 0 rgba(0,0,0,.18),0 14px 30px rgba(95,155,92,.4);transition:transform .08s ease;
+    display:flex;align-items:center;justify-content:center;gap:10px;min-width:230px;color:#FFFDF6}
+  .btn:active{transform:translateY(4px) scale(.98)}
+  .btn.coral{background:linear-gradient(180deg,#F79D7F,#F07A5A);box-shadow:0 6px 0 rgba(0,0,0,.18),0 14px 30px rgba(240,122,90,.35)}
+  .btn.sun{background:linear-gradient(180deg,#FFD97A,#F5A623);box-shadow:0 6px 0 rgba(0,0,0,.18),0 14px 30px rgba(245,166,35,.4);color:#4A3200}
+  .btn.violet{background:linear-gradient(180deg,#B8A8F5,#7C6CE0);box-shadow:0 6px 0 rgba(0,0,0,.18),0 14px 30px rgba(124,108,224,.4)}
+  .btn.ghost{background:rgba(67,80,62,.1);box-shadow:0 4px 0 rgba(0,0,0,.12);font-weight:700;color:var(--ink)}
+  .btn.small{min-width:0;padding:11px 16px;font-size:15px;border-radius:14px}
+  .iconbtn{width:46px;height:46px;border-radius:16px;border:1px solid rgba(67,80,62,.15);background:rgba(255,253,246,.7);
+    color:var(--ink);font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .08s}
+  .iconbtn:active{transform:scale(.92)}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:rgba(255,253,246,.75);border:1px solid rgba(67,80,62,.12);
+    padding:8px 14px;border-radius:999px;font-size:14px;font-weight:700;color:var(--dim)}
+  .chip b{color:var(--ink)}
+
+  #menu{justify-content:space-between}
+  #logo{font-size:clamp(56px,16vw,80px);font-weight:900;letter-spacing:.10em;line-height:1;color:var(--ink);
+    text-shadow:0 3px 0 rgba(255,255,255,.55),0 14px 34px rgba(67,80,62,.25)}
+  #tagline{margin-top:10px;font-size:13px;font-weight:800;letter-spacing:.3em;color:var(--dim);text-transform:uppercase}
+  #menu-top,#menu-mid{display:flex;flex-direction:column;align-items:center}
+  #menu-mid{gap:12px}
+  #menu-row{display:flex;gap:10px}
+  #menu-bottom{display:flex;gap:12px}
+  #howto-link{background:none;border:none;color:var(--dim);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;
+    text-decoration:underline;text-underline-offset:4px}
+  .sun-chip{background:rgba(255,253,246,.85);border:1px solid rgba(245,166,35,.35);color:#8A6A10;font-weight:900;
+    padding:8px 16px;border-radius:999px;font-size:15px;box-shadow:0 2px 10px rgba(245,166,35,.2)}
+
+  #hud{position:absolute;top:0;left:0;right:0;padding:calc(12px + env(safe-area-inset-top)) 14px 0;z-index:4;
+    display:none;justify-content:space-between;align-items:flex-start;pointer-events:none}
+  #hud.show{display:flex}
+  #hud-left{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+  #dist-chip{font-size:26px;font-weight:900;color:#fff;text-shadow:0 2px 12px rgba(67,80,62,.5);line-height:1}
+  #coin-chip{background:rgba(255,253,246,.8);border:1px solid rgba(245,166,35,.4);color:#8A6A10;font-weight:900;
+    font-size:14px;padding:4px 12px;border-radius:999px}
+  #hud-btns{display:flex;gap:8px;pointer-events:auto}
+  #zone-banner{position:absolute;left:0;right:0;top:24%;text-align:center;z-index:4;pointer-events:none;
+    font-weight:900;font-size:24px;letter-spacing:.24em;color:#fff;text-shadow:0 2px 20px rgba(67,80,62,.55);opacity:0;transition:opacity .6s}
+  #zone-banner.show{opacity:1}
+  #zone-banner small{display:block;font-size:12px;letter-spacing:.3em;font-weight:800;margin-top:6px;opacity:.85}
+
+  #hud-hint{position:absolute;left:0;right:0;top:32%;text-align:center;font-weight:900;font-size:21px;color:#fff;
+    text-shadow:0 2px 12px rgba(67,80,62,.5);opacity:0;z-index:4;pointer-events:none;transition:opacity .4s;line-height:1.5}
+  #hud-hint.show{opacity:1;animation:breathe 1.6s ease-in-out infinite}
+  @keyframes breathe{50%{transform:scale(1.05);opacity:.8}}
+
+  #pause{background:rgba(46,42,36,.45);backdrop-filter:blur(4px)}
+  #panel,#pause-card{width:min(86%,340px);background:var(--card);border:1px solid rgba(255,255,255,.6);border-radius:28px;
+    padding:26px 22px;display:flex;flex-direction:column;align-items:center;gap:13px;text-align:center;
+    box-shadow:0 30px 60px rgba(46,42,36,.35)}
+  #dead-title{font-size:15px;font-weight:900;letter-spacing:.28em;color:var(--coral)}
+  #dead-dist{font-size:66px;font-weight:900;line-height:1;color:var(--ink)}
+  #dead-dist span{font-size:24px;font-weight:800;color:var(--dim)}
+  #dead-best{font-size:14px;color:var(--dim);font-weight:700}
+  #dead-earn{font-size:14px;font-weight:900;color:#8A6A10;background:rgba(245,166,35,.15);padding:6px 14px;border-radius:999px}
+  #btn-revive{background:linear-gradient(180deg,#FFC96A,#F5A623);box-shadow:0 6px 0 rgba(0,0,0,.18),0 14px 30px rgba(245,166,35,.4)}
+  .ad-note{font-size:11px;color:rgba(67,80,62,.45);font-weight:600;margin-top:-6px}
+  #dead-row{display:flex;gap:10px}
+
+  .sheet{position:absolute;inset:0;z-index:9;background:rgba(46,42,36,.5);backdrop-filter:blur(4px);
+    display:flex;align-items:flex-end;justify-content:center;transition:opacity .28s}
+  .sheet.hidden{opacity:0;pointer-events:none}
+  .sheet-card{width:100%;max-width:520px;background:var(--cream);border-radius:28px 28px 0 0;
+    padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:78%;overflow-y:auto;
+    box-shadow:0 -20px 60px rgba(46,42,36,.4)}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .sheet-head h2{font-size:22px;font-weight:900}
+  .skin-row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:18px;background:#fff;
+    border:1.5px solid rgba(67,80,62,.1);margin-bottom:9px}
+  .skin-row.equipped{border-color:#5E9B5C;background:#F2F8EE}
+  .sw{width:44px;height:44px;border-radius:14px;position:relative;flex:0 0 44px;overflow:hidden}
+  .sw i{position:absolute;inset:14px 50% 14px 8px;border-radius:99px}
+  .sw b{position:absolute;top:9px;right:8px;width:12px;height:12px;border-radius:50%}
+  .skin-info{flex:1;text-align:left}
+  .skin-info b{font-size:15px;font-weight:900;display:block}
+  .skin-info span{font-size:12px;color:var(--dim);font-weight:700}
+  .mis-row{background:#fff;border:1.5px solid rgba(67,80,62,.1);border-radius:18px;padding:13px 14px;margin-bottom:9px;text-align:left}
+  .mis-row.done{background:#F2F8EE;border-color:#5E9B5C}
+  .mis-row .t{display:flex;justify-content:space-between;font-weight:900;font-size:14px;margin-bottom:8px}
+  .mis-row .t span:last-child{color:var(--dim)}
+  .bar{height:9px;border-radius:99px;background:rgba(67,80,62,.12);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8BC184,#5E9B5C)}
+  .bar i.full{background:linear-gradient(90deg,#FFD97A,#F5A623)}
+  .lang-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .lang-row button{border:1.5px solid rgba(67,80,62,.15);background:#fff;color:var(--ink);border-radius:999px;
+    padding:9px 16px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer}
+  .lang-row button.on{background:#5E9B5C;color:#fff;border-color:#5E9B5C}
+
+  #howto{background:rgba(46,42,36,.55);backdrop-filter:blur(4px)}
+  #howto-card{width:min(86%,340px);background:var(--card);border-radius:26px;padding:26px 22px;display:flex;flex-direction:column;gap:16px}
+  #howto-card h2{font-size:22px;font-weight:900;text-align:center}
+  .step{display:flex;align-items:center;gap:14px}
+  .step svg{flex:0 0 44px}
+  .step p{font-size:14px;font-weight:600;color:var(--dim);line-height:1.45}
+  .step p b{color:var(--ink)}
+
+  #ad{position:absolute;inset:0;z-index:20;background:rgba(36,32,26,.92);display:flex;align-items:center;justify-content:center}
+  #ad.hidden{display:none}
+  #ad-box{width:min(84%,340px);border-radius:24px;background:linear-gradient(160deg,#4A443A,#38332B);
+    border:1px dashed rgba(255,255,255,.3);padding:26px 22px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;color:var(--cream)}
+  #ad-tag{font-size:11px;font-weight:900;letter-spacing:.3em;color:rgba(255,253,246,.6);border:1px solid rgba(255,255,255,.25);padding:5px 12px;border-radius:999px}
+  #ad-title{font-size:20px;font-weight:800}
+  #ad-sub{font-size:13px;color:rgba(255,253,246,.65);font-weight:600;line-height:1.5}
+  #ad-claim{opacity:.4;pointer-events:none}
+  #ad-claim.ready{opacity:1;pointer-events:auto}
+  #toast{position:absolute;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);
+    background:rgba(255,252,242,.96);border:1px solid rgba(67,80,62,.15);color:var(--ink);padding:11px 18px;border-radius:14px;
+    font-size:14px;font-weight:700;opacity:0;transition:all .25s;z-index:15;pointer-events:none;white-space:nowrap}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="stage">
+<script>
+  if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+    try { window.Capacitor.Plugins.StatusBar.hide(); } catch(e){}
+  }
+</script>
+  <canvas id="cv"></canvas>
+
+  <div id="hud">
+    <div id="hud-left">
+      <div id="dist-chip">0 m</div>
+      <div id="coin-chip">☀ 0</div>
+      <div id="daily-chip" style="display:none;font-size:12px;font-weight:900;color:#fff;
+        text-shadow:0 2px 10px rgba(67,80,62,.5);letter-spacing:.12em"></div>
+    </div>
+    <div id="hud-btns">
+      <button id="btn-pause" class="iconbtn">⏸</button>
+    </div>
+  </div>
+  <div id="zone-banner"></div>
+  <div id="hud-hint">HOLD left / right<br>to steer your vine</div>
+
+  <!-- MENU -->
+  <div id="menu" class="screen">
+    <div id="menu-top">
+      <div id="logo">TENDRIL</div>
+      <div id="tagline" data-i18n="tagline">grow gently · graze bravely</div>
+    </div>
+    <div id="menu-mid">
+      <button id="btn-play" class="btn coral">🌱&nbsp; <span data-i18n="grow">GROW</span></button>
+      <button id="btn-daily" class="btn violet">🌸&nbsp; <span data-i18n="daily">DAILY GARDEN</span> <span id="daily-badge"
+        style="background:rgba(0,0,0,.22);border-radius:999px;padding:2px 10px;font-size:14px">3</span></button>
+      <div id="menu-row">
+        <button id="btn-shop" class="btn small sun">🛒 <span data-i18n="shop">SHOP</span></button>
+        <button id="btn-missions" class="btn small ghost">📋 <span data-i18n="missions">MISSIONS</span></button>
+      </div>
+      <div id="menu-row2" style="display:flex;gap:10px;align-items:center">
+        <div class="sun-chip">☀ <b id="menu-coins">0</b></div>
+        <div class="chip">🔥 <b id="menu-streak">0</b></div>
+        <div class="chip"><span data-i18n="best">BEST</span> <b id="menu-best">0</b> m</div>
+      </div>
+      <button id="howto-link" data-i18n="howto">how to play</button>
+    </div>
+    <div id="menu-bottom">
+      <button id="menu-mute" class="iconbtn">🔊</button>
+      <button id="menu-haptics" class="iconbtn">📳</button>
+      <button id="btn-lang" class="iconbtn">🌐</button>
+      <button id="menu-share" class="iconbtn">↗</button>
+    </div>
+  </div>
+
+  <!-- LANGUAGE -->
+  <div id="langsheet" class="sheet hidden">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h2>🌐 <span data-i18n="language">Language</span></h2>
+        <button id="lang-close" class="iconbtn">✕</button>
+      </div>
+      <div class="lang-row" id="lang-list"></div>
+    </div>
+  </div>
+
+  <!-- PAUSE -->
+  <div id="pause" class="screen hidden">
+    <div id="pause-card">
+      <div style="font-size:22px;font-weight:900" data-i18n="paused">PAUSED</div>
+      <button id="btn-resume" class="btn">▶&nbsp; <span data-i18n="resume">RESUME</span></button>
+      <button id="btn-quit-run" class="btn ghost" data-i18n="endRun">END RUN</button>
+      <button id="btn-reset" class="btn small ghost" style="margin-top:6px" data-i18n="resetAll">reset all progress</button>
+    </div>
+  </div>
+
+  <!-- DEATH -->
+  <div id="dead" class="screen hidden">
+    <div id="panel">
+      <div id="dead-title" data-i18n="rests">YOUR VINE RESTS</div>
+      <div id="dead-dist">0<span> m</span></div>
+      <div id="dead-best">Best 0 m</div>
+      <div id="dead-earn">☀ +0</div>
+      <button id="btn-double" class="btn small sun" style="display:none">☀ ×2</button>
+      <button id="btn-revive" class="btn coral">✚&nbsp; <span data-i18n="revive">REGROW HERE</span></button>
+      <div class="ad-note" data-i18n="adFree">watch a short ad · free</div>
+      <button id="btn-retry" class="btn"><span data-i18n="again">GROW AGAIN</span></button>
+      <div id="dead-row">
+        <button id="btn-home" class="iconbtn">⌂</button>
+        <button id="btn-share" class="iconbtn">↗</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAILY SUMMARY -->
+  <div id="daily-sum" class="screen hidden" style="background:rgba(46,42,36,.5);backdrop-filter:blur(4px)">
+    <div id="panel">
+      <div style="font-size:15px;font-weight:900;letter-spacing:.28em;color:#7C6CE0" data-i18n="dailyTitle">DAILY GARDEN</div>
+      <div id="ds-rating" style="font-size:44px;line-height:1.2">⭐⭐</div>
+      <div id="ds-name" style="font-size:24px;font-weight:900">TALL VINE</div>
+      <div id="ds-dist" style="font-size:52px;font-weight:900;line-height:1">0 m</div>
+      <div id="ds-note" style="font-size:13px;color:var(--dim);font-weight:700"></div>
+      <button id="btn-extra" class="btn violet" style="display:none">🌸 +1 ATTEMPT</button>
+      <button id="btn-daily-share" class="btn sun" data-i18n="shareResult">SHARE RESULT</button>
+      <button id="btn-daily-home" class="btn ghost" data-i18n="menuBtn">MENU</button>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div id="shop" class="sheet hidden">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h2>🌱 <span data-i18n="shopTitle">Vine Skins</span></h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="sun-chip">☀ <b id="shop-coins">0</b></div>
+          <button id="shop-close" class="iconbtn">✕</button>
+        </div>
+      </div>
+      <div id="skin-list"></div>
+    </div>
+  </div>
+
+  <!-- MISSIONS -->
+  <div id="missions" class="sheet hidden">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h2>📋 <span data-i18n="missionsTitle">Daily Missions</span></h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="sun-chip">☀ <b id="mis-coins">0</b></div>
+          <button id="mis-close" class="iconbtn">✕</button>
+        </div>
+      </div>
+      <div id="mis-list"></div>
+      <div style="font-size:12px;color:var(--dim);font-weight:700;text-align:center;margin-top:6px" data-i18n="misNote">missions refresh every day · play to progress</div>
+    </div>
+  </div>
+
+  <!-- HOW TO -->
+  <div id="howto" class="screen hidden">
+    <div id="howto-card">
+      <h2 data-i18n="hTitle">How to play</h2>
+      <div class="step">
+        <svg viewBox="0 0 44 44" width="44" height="44"><path d="M22 42 C22 30 22 22 22 10" stroke="#6FA96B" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M22 30 C16 28 12 24 12 18" stroke="#6FA96B" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+        <p><b data-i18n="h1t">Your vine never stops growing</b><span data-i18n="h1b"> upward. Hold left / right to steer.</span></p>
+      </div>
+      <div class="step">
+        <svg viewBox="0 0 44 44" width="44" height="44"><circle cx="22" cy="22" r="17" fill="none" stroke="#8A9478" stroke-width="2"/><circle cx="22" cy="10" r="4" fill="#FFB84C"/><circle cx="34" cy="26" r="4" fill="#FFB84C"/></svg>
+        <p><b data-i18n="h2t">Graze past thorns</b><span data-i18n="h2b">, catch sun orbs — they fill your bloom shield and earn ☀.</span></p>
+      </div>
+      <div class="step">
+        <svg viewBox="0 0 44 44" width="44" height="44"><circle cx="22" cy="24" r="7" fill="#FFB84C"/><g fill="#FF8FB0"><circle cx="22" cy="12" r="4"/><circle cx="32" cy="19" r="4"/><circle cx="30" cy="31" r="4"/><circle cx="14" cy="31" r="4"/><circle cx="12" cy="19" r="4"/></g></svg>
+        <p><b data-i18n="h3t">Full meter blooms a shield</b><span data-i18n="h3b">. Spend ☀ in the shop for new vine skins!</span></p>
+      </div>
+      <button id="howto-ok" class="btn small ghost" style="align-self:center" data-i18n="gotIt">GOT IT</button>
+    </div>
+  </div>
+
+  <!-- AD -->
+  <div id="ad" class="hidden">
+    <div id="ad-box">
+      <div id="ad-tag">TEST AD</div>
+      <div id="ad-title" data-i18n="adTitle">Advertisement</div>
+      <div id="ad-sub" data-i18n="adSub">This placeholder stands in for AdMob.</div>
+      <button id="ad-claim" class="btn small" data-i18n="claimReward">CLAIM REWARD</button>
+      <button id="ad-close" class="btn small ghost" data-i18n="skip">SKIP</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   TENDRIL 1.2 — cozy vine-growing dodge arcade (standalone edition)
+   NEW in 1.2: system-language detection + 9 locales + manual picker.
+   Single-file HTML5 → Capacitor shell for iOS/Android.
+   ===================================================================== */
+
+/* ---------- i18n ---------- */
+const LOCALES={
+en:{tagline:'grow gently · graze bravely',grow:'GROW',daily:'DAILY GARDEN',shop:'SHOP',missions:'MISSIONS',best:'BEST',howto:'how to play',language:'Language',paused:'PAUSED',resume:'RESUME',endRun:'END RUN',resetAll:'reset all progress',rests:'YOUR VINE RESTS',newBest:'★ NEW BEST ★',bestLine:'Best {n} m',earned:'☀ +{n} earned',revive:'REGROW HERE',adFree:'watch a short ad · free',again:'GROW AGAIN',dailyTitle:'DAILY GARDEN',shareResult:'SHARE RESULT',menuBtn:'MENU',shopTitle:'Vine Skins',missionsTitle:'Daily Missions',misNote:'missions refresh every day · play to progress',hTitle:'How to play',h1t:'Your vine never stops growing',h1b:' upward. Hold left / right to steer.',h2t:'Graze past thorns',h2b:', catch sun orbs — they fill your bloom shield and earn ☀.',h3t:'Full meter blooms a shield',h3b:'. Spend ☀ in the shop for new vine skins!',gotIt:'GOT IT',adTitle:'Advertisement',adSub:'This placeholder stands in for AdMob.',claimReward:'CLAIM REWARD',skip:'SKIP',zone0:'MEADOW',zone0s:'grow gently',zone1:'SUNSET WOODS',zone1s:'the thorns swing',zone2:'NIGHT GROVE',zone2s:'they glow in the dark',close:'close!',bloomF:'BLOOM!',hint:'HOLD left / right<br>to steer your vine',streakToast:'🔥 Streak day {n} — ☀ ×{m}',bestBonus:'☀ +{n} new best bonus!',needSun:'Need ☀ {n} more',unlocked:'{name} unlocked!',progressReset:'Progress reset',cardSaved:'Result card saved 📸',r_gold:'GOLDEN SPROUT',r_tall:'TALL VINE',r_young:'YOUNG VINE',r_sprout:'SPROUT',dSame:'Same garden for everyone today.',dBeat:'Can you grow taller? 🌱',dNote:'come back tomorrow for a new garden',misOrbs:'Collect {n} sun orbs',misGraze:'Graze {n} thorns closely',misDist:'Reach {n} m in one run',misBloom:'Trigger {n} blooms',ready:'· ready!',claimed:'· claimed',equip:'EQUIP',buy:'BUY',on:'· ON',tapEquip:'tap to equip',confirmReset:'Reset ALL progress (coins, skins, missions, garden, streak)?',nTitle:'🌱 Your garden misses you',nBody:'Daily missions refreshed — grow your vine today!',sTall:'meters tall 🌱',sBest:'Best {n} m · Can you grow taller?',sSame:'Same garden for everyone today.',dailyChip:'DAILY GARDEN',attemptsDots:'',shareText:'My vine grew {n} m in TENDRIL 🌱 Can you grow taller?',dailyShareText:'TENDRIL Daily Garden 🌱 {n}m {e} ({r}) — same garden for everyone. Beat that!'},
+'zh-CN':{tagline:'温柔生长 · 勇敢擦行',grow:'生长',daily:'每日花园',shop:'商店',missions:'任务',best:'最佳',howto:'玩法说明',language:'语言',paused:'已暂停',resume:'继续',endRun:'结束本局',resetAll:'重置全部进度',rests:'藤蔓歇息了',newBest:'★ 新纪录 ★',bestLine:'最佳 {n} 米',earned:'☀ 获得 +{n}',revive:'原地重生',adFree:'看个短广告 · 免费',again:'再长一次',dailyTitle:'每日花园',shareResult:'分享成绩',menuBtn:'菜单',shopTitle:'藤蔓皮肤',missionsTitle:'每日任务',misNote:'任务每天刷新 · 游戏即推进',hTitle:'玩法说明',h1t:'藤蔓永不停歇',h1b:'地向上生长。按住左右两侧转向。',h2t:'贴着荆棘擦行',h2b:'，收集阳光——填满开花护盾还能赚☀。',h3t:'攒满即开花护盾',h3b:'。去商店用☀解锁新皮肤！',gotIt:'知道了',adTitle:'广告',adSub:'这是 AdMob 广告位占位。',claimReward:'领取奖励',skip:'跳过',zone0:'青草地',zone0s:'温柔生长',zone1:'落日森林',zone1s:'荆棘开始摇摆',zone2:'夜之林',zone2s:'它们在黑暗中发光',close:'好险!',bloomF:'开花!',hint:'按住左侧 / 右侧<br>引导藤蔓方向',streakToast:'🔥 连续签到第 {n} 天 — ☀ ×{m}',bestBonus:'☀ +{n} 新纪录奖励！',needSun:'还差 ☀ {n}',unlocked:'已解锁「{name}」！',progressReset:'进度已重置',cardSaved:'成绩卡已保存 📸',r_gold:'黄金新芽',r_tall:'参天藤蔓',r_young:'茁壮新藤',r_sprout:'小小嫩芽',dSame:'今天全世界都是同一座花园。',dBeat:'你能长得更高吗？🌱',dNote:'花园每天刷新——明天再来试试',misOrbs:'收集 {n} 颗阳光球',misGraze:'擦过 {n} 根荆棘',misDist:'单局达到 {n} 米',misBloom:'触发 {n} 次开花',ready:'· 可领取',claimed:'· 已领取',equip:'装备',buy:'购买',on:'· 使用中',tapEquip:'点按装备',confirmReset:'重置全部进度（阳光、皮肤、任务、花园、签到）？',nTitle:'🌱 你的花园想你了',nBody:'每日任务已刷新——今天来长一截吧！',sTall:'米高 🌱',sBest:'最佳 {n} 米 · 你能长得更高吗？',sSame:'今天全世界都是同一座花园。',dailyChip:'每日花园',shareText:'我的藤蔓在 TENDRIL 里长到了 {n} 米 🌱 你能超过我吗？',dailyShareText:'TENDRIL 每日花园 🌱 {n}米 {e}（{r}）——全球同题，来超越我！'},
+ja:{tagline:'やさしく育て · 勇敢にすれすれ',grow:'育てる',daily:'デイリー庭園',shop:'ショップ',missions:'ミッション',best:'ベスト',howto:'遊び方',language:'言語',paused:'一時停止',resume:'つづける',endRun:'やめる',resetAll:'全データリセット',rests:'つるが休んでいます',newBest:'★ 新記録 ★',bestLine:'ベスト {n} m',earned:'☀ +{n} 獲得',revive:'ここで再生',adFree:'広告を見て無料',again:'もう一度',dailyTitle:'デイリー庭園',shareResult:'結果をシェア',menuBtn:'メニュー',shopTitle:'つるスキン',missionsTitle:'デイリーミッション',misNote:'ミッションは毎日更新',hTitle:'遊び方',h1t:'つるは止まらない',h1b:'。左右を長押しで操作。',h2t:'トゲをすり抜け',h2b:'、太陽を集めて開花シールドを充電＆☀獲得。',h3t:'満タンで開花シールド',h3b:'。☀でショップのスキンを解放！',gotIt:'OK',adTitle:'広告',adSub:'AdMob のテスト枠です。',claimReward:'報酬を受け取る',skip:'スキップ',zone0:'草原',zone0s:'やさしく育て',zone1:'夕暮れの森',zone1s:'トゲが揺れる',zone2:'夜の杜',zone2s:'闇の中で光る',close:'危ない!',bloomF:'開花!',hint:'画面の左右を<br>長押しで操作',streakToast:'🔥 {n}日連続 — ☀ ×{m}',bestBonus:'☀ +{n} 新記録ボーナス!',needSun:'☀ あと{n}',unlocked:'「{name}」解放！',progressReset:'リセットしました',cardSaved:'カードを保存しました 📸',r_gold:'ゴールデンスプラウト',r_tall:'高いつる',r_young:'若いつる',r_sprout:'芽ばえ',dSame:'今日の庭園は世界中で同じ。',dBeat:'もっと高く育てられる？🌱',dNote:'庭園は毎日更新——また明日',misOrbs:'太陽を{n}個集める',misGraze:'トゲに{n}回すれすれ通行',misDist:'1回で{n}m到達',misBloom:'開花を{n}回発生',ready:'· 受取可',claimed:'· 受取済',equip:'装備',buy:'購入',on:'· 使用中',tapEquip:'タップで装備',confirmReset:'全データ（☀・スキン・ミッション・庭園・連続記録）をリセット？',nTitle:'🌱 庭園が待ってる',nBody:'デイリーミッション更新！今日も育てよう',sTall:'メートル 🌱',sBest:'ベスト {n} m · もっと高く?',sSame:'今日の庭園は世界中で同じ。',dailyChip:'デイリー庭園',shareText:'TENDRILでつるが{n}mまで育った 🌱 追いつける？',dailyShareText:'TENDRIL デイリー庭園 🌱 {n}m {e}（{r}）——世界共通。抜いてみて！'},
+ko:{tagline:'부드럽게 자라고 · 깊이 스치며',grow:'키우기',daily:'오늘의 정원',shop:'상점',missions:'미션',best:'최고',howto:'플레이 방법',language:'언어',paused:'일시정지',resume:'계속하기',endRun:'끝내기',resetAll:'전체 초기화',rests:'덩굴이 쉬고 있어요',newBest:'★ 신기록 ★',bestLine:'최고 {n} m',earned:'☀ +{n} 획득',revive:'여기서 부활',adFree:'짧은 광고 · 무료',again:'다시 키우기',dailyTitle:'오늘의 정원',shareResult:'결과 공유',menuBtn:'메뉴',shopTitle:'덩굴 스킨',missionsTitle:'일일 미션',misNote:'미션은 매일 갱신',hTitle:'플레이 방법',h1t:'덩굴은 멈추지 않아요',h1b:' 위로 계속 자라요. 좌/우를 길게 눌러 조작.',h2t:'가시를 스치면',h2b:' 실드가 차오르고 ☀도 모여요.',h3t:'가득 차면 개화 실드',h3b:'! ☀로 상점에서 스킨을 사요',gotIt:'확인',adTitle:'광고',adSub:'AdMob 테스트 자리입니다.',claimReward:'보상 받기',skip:'건너뛰기',zone0:'초원',zone0s:'부드럽게 자라기',zone1:'노을 숲',zone1s:'가시가 흔들려요',zone2:'밤의 숲',zone2s:'어둠 속에서 빛나요',close:'아슬아슬!',bloomF:'개화!',hint:'왼쪽 / 오른쪽을<br>길게 눌러 조작',streakToast:'🔥 {n}일 연속 — ☀ ×{m}',bestBonus:'☀ +{n} 신기록 보너스!',needSun:'☀ {n} 부족해요',unlocked:'「{name}」 해금!',progressReset:'초기화 완료',cardSaved:'카드 저장 완료 📸',r_gold:'황금 새싹',r_tall:'높은 덩굴',r_young:'어린 덩굴',r_sprout:'새싹',dSame:'오늘의 정원은 전 세계가 같아요.',dBeat:'더 크게 키울 수 있나요? 🌱',dNote:'정원은 매일 갱신 — 내일 다시',misOrbs:'햇살 {n}개 모으기',misGraze:'가시 {n}번 스치기',misDist:'한 판에 {n}m 도달',misBloom:'개화 {n}번',ready:'· 수령 가능',claimed:'· 수령 완료',equip:'장착',buy:'구매',on:'· 사용 중',tapEquip:'탭하여 장착',confirmReset:'전체 진행 상황을 초기화할까요?',nTitle:'🌱 정원이 그리워요',nBody:'일일 미션 갱신! 오늘도 키워보세요',sTall:'미터 🌱',sBest:'최고 {n} m · 더 키울 수 있나요?',sSame:'오늘의 정원은 전 세계가 같아요.',dailyChip:'오늘의 정원',shareText:'TENDRIL에서 덩굴이 {n}m까지 자랐어요 🌱 이겨볼래요?',dailyShareText:'TENDRIL 오늘의 정원 🌱 {n}m {e}({r}) — 전 세계 같은 정원. 넘어보세요!'},
+es:{tagline:'crece suave · roza valiente',grow:'CRECER',daily:'JARDÍN DIARIO',shop:'TIENDA',missions:'MISIONES',best:'RÉCORD',howto:'cómo jugar',language:'Idioma',paused:'PAUSA',resume:'SEGUIR',endRun:'TERMINAR',resetAll:'borrar todo el progreso',rests:'TU VIDA DESCANSA',newBest:'★ NUEVO RÉCORD ★',bestLine:'Récord {n} m',earned:'☀ +{n} ganado',revive:'BROTAR AQUÍ',adFree:'mira un anuncio · gratis',again:'CRECER OTRA VEZ',dailyTitle:'JARDÍN DIARIO',shareResult:'COMPARTIR',menuBtn:'MENÚ',shopTitle:'Skins de vid',missionsTitle:'Misiones diarias',misNote:'misiones nuevas cada día · juega para avanzar',hTitle:'Cómo jugar',h1t:'Tu vid nunca deja de crecer',h1b:' hacia arriba. Mantén izquierda / derecha para girar.',h2t:'Roza las espinas',h2b:' y atrapa soles: llenan tu escudo floral y ganan ☀.',h3t:'Barra llena = escudo florecido',h3b:'. ¡Gasta ☀ en la tienda para nuevas pieles!',gotIt:'ENTENDIDO',adTitle:'Anuncio',adSub:'Sustituto de prueba de AdMob.',claimReward:'RECLAMAR',skip:'SALTAR',zone0:'PRADERA',zone0s:'crece suave',zone1:'BOSQUE OCRE',zone1s:'las espinas se balancean',zone2:'BOSQUE NOCTURNO',zone2s:'brillan en la oscuridad',close:'¡casi!',bloomF:'¡FLOR!',hint:'MANTÉN izquierda / derecha<br>para girar tu vid',streakToast:'🔥 Día {n} seguidos — ☀ ×{m}',bestBonus:'☀ +{n} bonus de récord!',needSun:'Te faltan ☀ {n}',unlocked:'¡{name} desbloqueada!',progressReset:'Progreso borrado',cardSaved:'Tarjeta guardada 📸',r_gold:'BROTO DE ORO',r_tall:'VID ALTA',r_young:'VID JOVEN',r_sprout:'BROTO',dSame:'Hoy el jardín es igual para todo el mundo.',dBeat:'¿Puedes crecer más? 🌱',dNote:'el jardín se renueva cada día — vuelve mañana',misOrbs:'Recoge {n} soles',misGraze:'Roza {n} espinas',misDist:'Llega a {n} m en una partida',misBloom:'Provoca {n} floraciones',ready:'· listo',claimed:'· reclamado',equip:'EQUIPAR',buy:'COMPRAR',on:'· EN USO',tapEquip:'toca para equipar',confirmReset:'¿Borrar todo el progreso (soles, pieles, misiones, jardín, racha)?',nTitle:'🌱 Tu jardín te extraña',nBody:'Misiones nuevas — ¡ven a crecer hoy!',sTall:'metros 🌱',sBest:'Récord {n} m · ¿puedes crecer más?',sSame:'Hoy el jardín es igual para todo el mundo.',dailyChip:'JARDÍN DIARIO',shareText:'Mi vid creció {n} m en TENDRIL 🌱 ¿La superas?',dailyShareText:'TENDRIL Jardín Diario 🌱 {n}m {e} ({r}) — mismo jardín para todos. ¡Supéralo!'},
+'pt-BR':{tagline:'cresça suave · raspe valente',grow:'CRESCER',daily:'JARDIM DIÁRIO',shop:'LOJA',missions:'MISSÕES',best:'RECORDE',howto:'como jogar',language:'Idioma',paused:'PAUSADO',resume:'CONTINUAR',endRun:'ENCERRAR',resetAll:'apagar todo o progresso',rests:'SUA VIDEO DESCANSA',newBest:'★ NOVO RECORDE ★',bestLine:'Recorde {n} m',earned:'☀ +{n} ganho',revive:'REBROTAR AQUI',adFree:'ve um anúncio · grátis',again:'CRESCER DE NOVO',dailyTitle:'JARDIM DIÁRIO',shareResult:'COMPARTILHAR',menuBtn:'MENU',shopTitle:'Skins de videira',missionsTitle:'Missões diárias',misNote:'missões renovam todo dia · jogue para avançar',hTitle:'Como jogar',h1t:'Sua videira nunca para de crescer',h1b:' para cima. Segure esquerda / direita para guiar.',h2t:'Raspe os espinhos',h2b:' e pegue sóis — enchem o escudo florido e rendem ☀.',h3t:'Barra cheia floresce escudo',h3b:'. Gaste ☀ na loja por novas peles!',gotIt:'ENTENDI',adTitle:'Anúncio',adSub:'Espaço de teste do AdMob.',claimReward:'RECEBER',skip:'PULAR',zone0:'CAMPO',zone0s:'cresça suave',zone1:'BOSQUE POENTE',zone1s:'os espinhos balançam',zone2:'BOSQUE NOTURNO',zone2s:'brilham no escuro',close:'quase!',bloomF:'FLOR!',hint:'SEGURE esquerda / direita<br>para guiar a videira',streakToast:'🔥 Dia {n} seguidos — ☀ ×{m}',bestBonus:'☀ +{n} bônus de recorde!',needSun:'Falta ☀ {n}',unlocked:'{name} desbloqueada!',progressReset:'Progresso apagado',cardSaved:'Card salvo 📸',r_gold:'BROTO DE OURO',r_tall:'VIDEIRA ALTA',r_young:'VIDEIRA JOVEM',r_sprout:'BROTO',dSame:'Hoje o jardim é igual no mundo todo.',dBeat:'Consegue crescer mais? 🌱',dNote:'o jardim renova todo dia — volte amanhã',misOrbs:'Colete {n} sóis',misGraze:'Raspe {n} espinhos',misDist:'Alcance {n} m numa partida',misBloom:'Faça {n} florações',ready:'· pronto',claimed:'· recebido',equip:'EQUIPAR',buy:'COMPRAR',on:'· EM USO',tapEquip:'toque para equipar',confirmReset:'Apagar todo o progresso (soles, skins, missões, jardim, sequência)?',nTitle:'🌱 Seu jardim sente falta',nBody:'Missões renovadas — venha crescer hoje!',sTall:'metros 🌱',sBest:'Recorde {n} m · consegue crescer mais?',sSame:'Hoje o jardim é igual no mundo todo.',dailyChip:'JARDIM DIÁRIO',shareText:'Minha videira cresceu {n} m no TENDRIL 🌱 Supera isso?',dailyShareText:'TENDRIL Jardim Diário 🌱 {n}m {e} ({r}) — jardim igual no mundo todo. Supera!'},
+de:{tagline:'sanft wachsen · kühn streifen',grow:'WACHSEN',daily:'TAGLICHES GARTEN',shop:'SHOP',missions:'AUFGABEN',best:'BEST',howto:'so wird gespielt',language:'Sprache',paused:'PAUSE',resume:'WEITER',endRun:'BEENDEN',resetAll:'alles zurücksetzen',rests:'DEIN REBEN RUHT',newBest:'★ NEUER REKORD ★',bestLine:'Rekord {n} m',earned:'☀ +{n} verdient',revive:'HIER NEU WACHSEN',adFree:'kurze Werbung · gratis',again:'NOCHMAL WACHSEN',dailyTitle:'TAGLICHES GARTEN',shareResult:'TEILEN',menuBtn:'MENÜ',shopTitle:'Reben-Skins',missionsTitle:'Tägliche Aufgaben',misNote:'Aufgaben erneuern sich täglich · spiele um zu schaffen',hTitle:'So wird gespielt',h1t:'Deine Rebe hört nie auf zu wachsen',h1b:' nach oben. Links / rechts halten zum Lenken.',h2t:'Streiche an Dornen vorbei',h2b:' und sammle Sonnen — sie füllen deine Blüte und bringen ☀.',h3t:'Volle Leiste = Blüten-Schild',h3b:'. Spendiere ☀ im Shop für neue Skins!',gotIt:'VERSTANDEN',adTitle:'Werbung',adSub:'AdMob-Platzhalter.',claimReward:'BELOHNUNG HOLEN',skip:'ÜBERSPRINGEN',zone0:'WIESE',zone0s:'sanft wachsen',zone1:'ABENDWALD',zone1s:'die Dornen schwingen',zone2:'NACHTHAIN',zone2s:'sie leuchten im Dunkeln',close:'knapp!',bloomF:'BLÜTE!',hint:'LINKS / RECHTS halten<br>um die Rebe zu lenken',streakToast:'🔥 Tag {n} in Folge — ☀ ×{m}',bestBonus:'☀ +{n} Rekord-Bonus!',needSun:'Es fehlen ☀ {n}',unlocked:'{name} freigeschaltet!',progressReset:'Fortschritt zurückgesetzt',cardSaved:'Karte gespeichert 📸',r_gold:'GOLDENER SPROSS',r_tall:'HOHE REBE',r_young:'JUNGE REBE',r_sprout:'SPROSS',dSame:'Heute ist der Garten für alle gleich.',dBeat:'Wächst du höher? 🌱',dNote:'der Garten erneuert sich täglich — bis morgen',misOrbs:'Sammle {n} Sonnen',misGraze:'Streiche {n}× an Dornen vorbei',misDist:'Erreiche {n} m in einer Runde',misBloom:'Löse {n} Blüten aus',ready:'· bereit',claimed:'· geholt',equip:'ANLEGEN',buy:'KAUFEN',on:'· AKTIV',tapEquip:'antippen zum Anlegen',confirmReset:'Wirklich alles zurücksetzen (Sonnen, Skins, Aufgaben, Garten, Serie)?',nTitle:'🌱 Dein Garten vermisst dich',nBody:'Neue Aufgaben — komm und wachse heute!',sTall:'Meter 🌱',sBest:'Rekord {n} m · Wächst du höher?',sSame:'Heute ist der Garten für alle gleich.',dailyChip:'TAGLICHES GARTEN',shareText:'Meine Rebe ist in TENDRIL {n} m hoch gewachsen 🌱 Schaffst du mehr?',dailyShareText:'TENDRIL Tagliches Garten 🌱 {n}m {e} ({r}) — für alle gleich. Übertreff mich!'},
+fr:{tagline:'pousse en douceur · frôle sans peur',grow:'POUSSER',daily:'JARDIN DU JOUR',shop:'BOUTIQUE',missions:'MISSIONS',best:'RECORD',howto:'comment jouer',language:'Langue',paused:'PAUSE',resume:'REPRENDRE',endRun:'TERMINER',resetAll:'tout réinitialiser',rests:'TA GRIPPE SE REPOSE',newBest:'★ NOUVEAU RECORD ★',bestLine:'Record {n} m',earned:'☀ +{n} gagné',revive:'REPOUSSER ICI',adFree:'une pub courte · gratuit',again:'POUSSER ENCORE',dailyTitle:'JARDIN DU JOUR',shareResult:'PARTAGER',menuBtn:'MENU',shopTitle:'Skins de liane',missionsTitle:'Missions du jour',misNote:'missions renouvelées chaque jour · joue pour progresser',hTitle:'Comment jouer',h1t:'Ta liane ne cesse de pousser',h1b:' vers le haut. Maintiens gauche / droite pour diriger.',h2t:'Frôle les épines',h2b:' et attrape les soleils — ils remplissent ton bouclier floral et rapportent des ☀.',h3t:'Jauge pleine = bouclier fleuri',h3b:'. Dépense tes ☀ en boutique !',gotIt:'COMPRIS',adTitle:'Publicité',adSub:'Emplacement test AdMob.',claimReward:'RÉCLAMER',skip:'PASSER',zone0:'PRAIRIE',zone0s:'pousse en douceur',zone1:'BOIS CREPUSCULE',zone1s:'les épines se balancent',zone2:'BOIS NOCTURNE',zone2s:'elles brillent dans le noir',close:'presque !',bloomF:'FLEUR !',hint:'MAINTIENS gauche / droite<br>pour diriger ta liane',streakToast:'🔥 Jour {n} d\'affilée — ☀ ×{m}',bestBonus:'☀ +{n} bonus de record !',needSun:'Il manque ☀ {n}',unlocked:'{name} débloquée !',progressReset:'Progression effacée',cardSaved:'Carte enregistrée 📸',r_gold:'POUSSE D\'OR',r_tall:'LIANE HAUTE',r_young:'JEUNE LIANE',r_sprout:'POUSSE',dSame:'Aujourd\'hui, le jardin est le même pour tous.',dBeat:'Pousseras-tu plus haut ? 🌱',dNote:'le jardin se renouvelle chaque jour — à demain',misOrbs:'Attrape {n} soleils',misGraze:'Frôle {n} épines',misDist:'Atteins {n} m en une partie',misBloom:'Déclenche {n} floraisons',ready:'· prêt',claimed:'· réclamé',equip:'ÉQUIPER',buy:'ACHETER',on:'· EN COURS',tapEquip:'touche pour équiper',confirmReset:'Effacer toute la progression (soleils, skins, missions, jardin, série) ?',nTitle:'🌱 Ton jardin s\'ennuie sans toi',nBody:'Nouvelles missions — viens pousser aujourd\'hui !',sTall:'mètres 🌱',sBest:'Record {n} m · Pousseras-tu plus haut ?',sSame:'Aujourd\'hui, le jardin est le même pour tous.',dailyChip:'JARDIN DU JOUR',shareText:'Ma liane a poussé {n} m dans TENDRIL 🌱 Tu fais mieux ?',dailyShareText:'TENDRIL Jardin du Jour 🌱 {n}m {e} ({r}) — le même pour tous. Fais mieux !'},
+ru:{tagline:'расти нежно · смело скользи',grow:'РАСТИ',daily:'САД ДНЯ',shop:'МАГАЗИН',missions:'ЗАДАНИЯ',best:'РЕКОРД',howto:'как играть',language:'Язык',paused:'ПАУЗА',resume:'ПРОДОЛЖИТЬ',endRun:'ЗАВЕРШИТЬ',resetAll:'сбросить весь прогресс',rests:'ТВОЯ ЛИАНА ОТДЫХАЕТ',newBest:'★ НОВЫЙ РЕКОРД ★',bestLine:'Рекорд {n} м',earned:'☀ +{n} заработано',revive:'ВОЗРОДИТЬ ЗДЕСЬ',adFree:'короткая реклама · бесплатно',again:'РАСТИ СНОВА',dailyTitle:'САД ДНЯ',shareResult:'ПОДЕЛИТЬСЯ',menuBtn:'МЕНЮ',shopTitle:'Скины лианы',missionsTitle:'Задания дня',misNote:'задания обновляются каждый день · играй и выполняй',hTitle:'Как играть',h1t:'Твоя лиана растёт без остановки',h1b:' вверх. Держи лево / право для поворота.',h2t:'Скольжи вдоль шипов',h2b:' и лови солнца — они наполняют щит-цветение и приносят ☀.',h3t:'Полная шкала = щит-цветение',h3b:'. Трать ☀ в магазине на новые скины!',gotIt:'ПОНЯТНО',adTitle:'Реклама',adSub:'Тестовое место AdMob.',claimReward:'ЗАБРАТЬ',skip:'ПРОПУСТИТЬ',zone0:'ЛУГ',zone0s:'расти нежно',zone1:'ЗАКАТНЫЙ ЛЕС',zone1s:'шипы качаются',zone2:'НОЧНАЯ РОЩА',zone2s:'они светятся в темноте',close:'впритирку!',bloomF:'ЦВЕТ!',hint:'ДЕРЖИ лево / право<br>чтобы направить лиану',streakToast:'🔥 {n} день подряд — ☀ ×{m}',bestBonus:'☀ +{n} бонус за рекорд!',needSun:'Не хватает ☀ {n}',unlocked:'«{name}» открыто!',progressReset:'Прогресс сброшен',cardSaved:'Карточка сохранена 📸',r_gold:'ЗОЛОТОЙ РОСТОК',r_tall:'ВЫСОКАЯ ЛИАНА',r_young:'МОЛОДАЯ ЛИАНА',r_sprout:'РОСТОК',dSame:'Сегодня сад один на всех.',dBeat:'Вырастешь выше? 🌱',dNote:'сад обновляется каждый день — до завтра',misOrbs:'Собери {n} солнц',misGraze:'Скользни вдоль {n} шипов',misDist:'Достигни {n} м за один заход',misBloom:'Вызови {n} цветений',ready:'· готово',claimed:'· получено',equip:'НАДЕТЬ',buy:'КУПИТЬ',on:'· АКТИВНО',tapEquip:'нажми, чтобы надеть',confirmReset:'Сбросить весь прогресс (солнца, скины, задания, сад, серия)?',nTitle:'🌱 Твой сад скучает',nBody:'Задания обновились — приходи расти сегодня!',sTall:'метров 🌱',sBest:'Рекорд {n} м · Вырастешь выше?',sSame:'Сегодня сад один на всех.',dailyChip:'САД ДНЯ',shareText:'Моя лиана выросла на {n} м в TENDRIL 🌱 Побьёшь мой результат?',dailyShareText:'TENDRIL Сад Дня 🌱 {n}м {e} ({r}) — сад один на всех. Побей!'}
+};
+const LANGS=[
+  {id:'en',label:'English'},{id:'zh-CN',label:'简体中文'},{id:'ja',label:'日本語'},{id:'ko',label:'한국어'},
+  {id:'es',label:'Español'},{id:'pt-BR',label:'Português (BR)'},{id:'de',label:'Deutsch'},{id:'fr',label:'Français'},{id:'ru',label:'Русский'}
+];
+function detectLocale(){
+  const saved=store.get('lang',null);
+  if(saved&&LOCALES[saved])return saved;
+  const nav=(navigator.language||'en').toLowerCase();
+  if(nav.startsWith('zh'))return (nav.includes('tw')||nav.includes('hk')||nav.includes('hant'))?'zh-CN':'zh-CN';
+  for(const l of LANGS){if(nav.startsWith(l.id.toLowerCase()))return l.id;}
+  for(const l of LANGS){if(nav.split('-')[0]===l.id.split('-')[0])return l.id;}
+  return 'en';
+}
+let locale='en';   // 在 store 就绪后由 detectLocale() 真正赋值
+function t(k,vars){
+  let s=(LOCALES[locale]&&LOCALES[locale][k])!=null?LOCALES[locale][k]:LOCALES.en[k];
+  if(s==null)s=k;
+  if(vars)for(const v in vars)s=s.split('{'+v+'}').join(vars[v]);
+  return s;
+}
+function applyLocale(){
+  document.documentElement.lang=locale;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n);});
+  $('#hud-hint').innerHTML=t('hint');
+  refreshMenu();updateDailyChip();
+}
+function setLocale(id){
+  locale=id;store.set('lang',id);
+  renderLangList();applyLocale();
+  toast(LANGS.find(l=>l.id===id).label);
+}
+function renderLangList(){
+  const el=$('#lang-list');el.innerHTML='';
+  for(const l of LANGS){
+    const b=document.createElement('button');
+    b.textContent=l.label;
+    if(l.id===locale)b.classList.add('on');
+    b.addEventListener('click',()=>setLocale(l.id));
+    el.appendChild(b);
+  }
+}
+
+/* ---------- utils ---------- */
+const $ = s => document.querySelector(s);
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const lerp=(a,b,t)=>a+(b-a)*t;
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const TAU=Math.PI*2;
+const store={
+  get(k,d){try{const v=localStorage.getItem('td:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem('td:'+k,JSON.stringify(v));}catch(e){}}
+};
+let hapticsOn=store.get('haptics',true);
+const hap=p=>{if(!hapticsOn)return;try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}};
+locale=detectLocale();   // store 已就绪，检测系统语言
+
+/* ---------- skins ---------- */
+const SKINS=[
+  {id:'classic',name:'Classic Green',cost:0,  stroke:'#4A7A4C',fill:'#8BC184',leaf:'#6FA96B',flower:'#FF8FB0',head:'#8BC184'},
+  {id:'blossom',name:'Cherry Blossom',cost:150,stroke:'#B05A7A',fill:'#F4A7C3',leaf:'#E58BB1',flower:'#FFF3F8',head:'#F4A7C3'},
+  {id:'wisteria',name:'Wisteria',cost:250,stroke:'#5E4B8A',fill:'#A78BFA',leaf:'#8B6FD8',flower:'#FFD166',head:'#A78BFA'},
+  {id:'gold',name:'Golden Thread',cost:400,stroke:'#9A7418',fill:'#F5C842',leaf:'#E8AE2B',flower:'#FFF6DE',head:'#F5C842'},
+  {id:'mint',name:'Frost Mint',cost:600,stroke:'#2E7D74',fill:'#7CE8D8',leaf:'#4ECDC4',flower:'#FFFFFF',head:'#7CE8D8'},
+  {id:'ember',name:'Ember Vine',cost:900,stroke:'#8A3B1E',fill:'#F07A5A',leaf:'#E86A3C',flower:'#FFE3AD',head:'#F07A5A'},
+  {id:'aurora',name:'Aurora Silk',cost:1400,stroke:'#1E6E5A',fill:'#7DF2C8',leaf:'#3EDBB4',flower:'#F0C8FF',head:'#7DF2C8'},
+  {id:'midnight',name:'Midnight Bloom',cost:1900,stroke:'#1F2A4A',fill:'#5A6EC8',leaf:'#3D4E9E',flower:'#9FB4FF',head:'#5A6EC8'},
+  {id:'moss',name:'Ancient Moss',cost:2600,stroke:'#3E4A26',fill:'#93A85A',leaf:'#6E8340',flower:'#E8FFB8',head:'#93A85A'},
+  {id:'candy',name:'Candy Rope',cost:3600,stroke:'#C84A8A',fill:'#FFA1CE',leaf:'#F07AB8',flower:'#FFF0FA',head:'#FFA1CE'}
+];
+const skinById=id=>SKINS.find(s=>s.id===id)||SKINS[0];
+
+/* ---------- missions ---------- */
+const MIS_POOL=[
+  {id:'orbs', key:'misOrbs', lens:[25,35,45],  reward:80},
+  {id:'graze',key:'misGraze',lens:[8,12,16],   reward:90},
+  {id:'dist', key:'misDist', lens:[200,300,400],reward:100},
+  {id:'bloom',key:'misBloom',lens:[1,2,3],     reward:70}
+];
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+  return ()=>{h=Math.imul(h^(h>>>16),2246822507);h=Math.imul(h^(h>>>13),3266489909);return (h^=h>>>16)>>>0;};}
+function mulberry32(a){return ()=>{a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;return ((t^(t>>>14))>>>0)/4294967296;};}
+function getMissions(){
+  const t2=todayStr();
+  let m=store.get('missions',null);
+  if(!m||m.date!==t2||!m.list[0]||!m.list[0].key){
+    const rng=mulberry32(xmur3('tendril-'+t2)());
+    const pool=[...MIS_POOL];
+    const list=[];
+    for(let i=0;i<3;i++){
+      const p=pool.splice(Math.floor(rng()*pool.length),1)[0];
+      const n=p.lens[Math.floor(rng()*p.lens.length)];
+      list.push({id:p.id,key:p.key,n,goal:n,prog:0,reward:p.reward,claimed:false});
+    }
+    m={date:t2,list};store.set('missions',m);
+  }
+  m.list.forEach(it=>{if(it.goal==null)it.goal=it.n;});
+  return m;
+}
+function misText(it){return t(it.key,{n:it.n});}
+function addMissionProgress(kind,n){
+  const m=getMissions();
+  let changed=false;
+  for(const it of m.list){
+    if(it.id===kind&&!it.claimed&&it.prog<it.goal){
+      it.prog = kind==='dist' ? Math.max(it.prog,n) : Math.min(it.goal,it.prog+n);
+      changed=true;
+    }
+  }
+  if(changed)store.set('missions',m);
+}
+
+/* ---------- audio ---------- */
+const Sfx={
+  ctx:null,on:store.get('sound',true),
+  ensure(){if(!this.ctx){try{this.ctx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return;}}
+    if(this.ctx.state==='suspended')this.ctx.resume();},
+  tone(f,dur,type='sine',vol=.18,slide=null,delay=0){
+    if(!this.on||!this.ctx)return;
+    const t0=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),g=this.ctx.createGain();
+    o.type=type;o.frequency.setValueAtTime(f,t0);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,slide),t0+dur);
+    g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+    o.connect(g).connect(this.ctx.destination);o.start(t0);o.stop(t0+dur+.05);},
+  noise(dur,vol=.2,from=900,to=180,type='bandpass'){
+    if(!this.on||!this.ctx)return;
+    const t0=this.ctx.currentTime,n=Math.floor(this.ctx.sampleRate*dur);
+    const buf=this.ctx.createBuffer(1,n,this.ctx.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    const src=this.ctx.createBufferSource();src.buffer=buf;
+    const f=this.ctx.createBiquadFilter();f.type=type;f.Q.value=.8;
+    f.frequency.setValueAtTime(from,t0);f.frequency.exponentialRampToValueAtTime(Math.max(40,to),t0+dur);
+    const g=this.ctx.createGain();g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+    src.connect(f).connect(g).connect(this.ctx.destination);src.start(t0);},
+  pluck(i){const s=[523,587,659,784,880,1047,1175];this.tone(s[Math.min(i,6)],.18,'triangle',.2);},
+  graze(){this.noise(.14,.1,2400,700,'bandpass');},
+  bloom(){[659,784,988,1319].forEach((f,i)=>this.tone(f,.2,'triangle',.16,null,i*.06));},
+  smash(){this.noise(.12,.2,500,120,'lowpass');this.tone(160,.08,'square',.08,90);},
+  death(){this.noise(.3,.22,300,70,'lowpass');this.tone(140,.35,'sine',.2,60);},
+  zone(){[523,659,784].forEach((f,i)=>this.tone(f,.25,'sine',.12,null,i*.1));},
+  buy(){this.tone(880,.12,'triangle',.16);this.tone(1175,.18,'triangle',.14,null,.09);},
+  ui(){this.tone(620,.04,'square',.05);},
+  revive(){[440,554,659,880].forEach((f,i)=>this.tone(f,.14,'triangle',.16,null,i*.07));}
+};
+document.addEventListener('visibilitychange',()=>{
+  if(!Sfx.ctx)return;
+  document.hidden?Sfx.ctx.suspend():(Sfx.on&&Sfx.ctx.resume());
+  if(document.hidden)store.set('lastExit',Date.now());
+});
+
+/* ---------- ads (v1.1 TopOn 聚合：AdMob + Meta 竞价) ----------
+   设计与频控红线见 docs/monetization-tendril.md。
+   三级后端自动择优：① TopOn 原生桥 ② AdMob 社区插件 ③ 演示流程。
+   ADS_ENABLED=false 为商店纯净版默认；本地测试加 ?ads=1。
+   ↑ 上线开闸：TopOn/AdMob 广告位 ID 配好后把 ADS_FORCE_ADS 改为 true */
+const ADS_FORCE_ADS=false;
+const ADS_DEBUG=new URLSearchParams(location.search).has('ads');
+const adsOn=()=>ADS_FORCE_ADS||ADS_DEBUG;
+const AD_IDS={ // TopOn Placement IDs（后台已建）
+  rewarded:'n6ad7219329fde',      // RV_DOUBLE 结算☀×2
+  revive:'n6ad71fc787548',        // RV_REVIVE 原地重生
+  extraDaily:'n6ad7228d40e4c',    // RV_EXTRA_DAILY 每日+1次
+  interstitial:'n6ad723204554a',  // IV_DEATH 插屏
+  appOpen:'n6ad723555d7cc'        // AO_COLD 开屏
+};
+const AD_RULES={
+  ivMinDeaths:3, ivCooldownMs:120000, ivDailyCap:8,
+  aoMinGapMs:4*3600000, aoDailyCap:2, dailyExtraCap:2
+};
+const Ads={
+  sessionDeaths:0,lastShown:0,dailyIV:{},dailyAO:{},
+  interstitialAllowed(){
+    const day=todayStr();
+    if((this.dailyIV[day]||0)>=AD_RULES.ivDailyCap)return false;
+    return this.sessionDeaths>=AD_RULES.ivMinDeaths
+        && Date.now()-this.lastShown>=AD_RULES.ivCooldownMs;
+  },
+  maybeInterstitial(done){
+    if(!adsOn()){done();return;}
+    if(!this.interstitialAllowed()){done();return;}
+    this.sessionDeaths=0;this.lastShown=Date.now();
+    const day=todayStr();this.dailyIV[day]=(this.dailyIV[day]||0)+1;
+    this._show({kind:'interstitial',placement:AD_IDS.interstitial,done});
+  },
+  maybeAppOpen(){
+    if(!adsOn())return;
+    const day=todayStr();
+    if((this.dailyAO[day]||0)>=AD_RULES.aoDailyCap)return;
+    const last=store.get('lastExit',0);
+    if(Date.now()-last<AD_RULES.aoMinGapMs)return;
+    this.dailyAO[day]=(this.dailyAO[day]||0)+1;
+    this._show({kind:'appopen',placement:AD_IDS.appOpen});
+  },
+  showRewarded(placement,onReward,onSkip){
+    this._show({kind:'rewarded',placement,
+      then:grant=>grant?onReward&&onReward():onSkip&&onSkip()});
+  },
+  _show(req){
+    if(!adsOn()){
+      if(req.kind==='rewarded')req.then&&req.then(true);else req.done&&req.done();
+      return;
+    }
+    // ① TopOn 原生桥（Capacitor 插件 TopOnAds）
+    const P=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.TopOnAds;
+    if(P){P.showAd({kind:req.kind,placement:req.placement}).then(r=>{
+        const ok=!!(r&&(r.completed===true||r.shown===true));
+        Te.evt('ad_result',{kind:req.kind,placement:req.placement,ok:ok?1:0});
+        if(ok){req.then&&req.then(true);}else{req.then&&req.then(false);}
+        req.done&&req.done();
+      }).catch(()=>{req.then&&req.then(false);req.done&&req.done();});
+      return;}
+    // ② AdMob 社区插件（后台建好广告位后填 AD_IDS 并接入）
+    // ③ 演示流程（浏览器 / 未接 SDK：完整激励流程，无真广告）
+    this._demo(req);
+  },
+  _demo({kind,done,then}){
+    const rewarded=kind==='rewarded';
+    const el=$('#ad'),claim=$('#ad-claim'),close=$('#ad-close'),sub=$('#ad-sub'),title=$('#ad-title');
+    el.classList.remove('hidden');claim.classList.remove('ready');
+    close.style.visibility=rewarded?'visible':'hidden';
+    title.textContent=t('adTitle');
+    sub.textContent=rewarded?'🎁':'☕';
+    let tt=0;const timer=setInterval(tick,700);let ended=false;
+    function tick(){tt++;
+      if(rewarded){const l=3-tt;sub.innerHTML=l>0?`\u23F3 <b>${l}</b>`:'\uD83C\uDF81';if(tt>=3)claim.classList.add('ready');}
+      if(!rewarded&&tt>=2)end(true);}
+    function end(grant){if(ended)return;ended=true;clearInterval(timer);el.classList.add('hidden');
+      claim.onclick=close.onclick=null;
+      if(rewarded){grant?then&&then(true):then&&then(false);}
+      else done&&done();}
+    claim.onclick=()=>{Sfx.ui();end(true);};
+    close.onclick=()=>{Sfx.ui();end(false);};
+    tick();}
+};
+
+/* ---------- telemetry (Firebase Analytics via Capacitor) ---------- */
+const Te={
+  fa:null,on:false,
+  init(){
+    try{
+      const C=window.Capacitor;
+      if(!(C&&C.isNativePlatform&&C.isNativePlatform()))return;
+      this.fa=C.Plugins.FirebaseAnalytics;
+      if(!this.fa)return;
+      this.fa.setAnalyticsCollectionEnabled({enabled:true}).catch(()=>{});
+      this.on=true;
+    }catch(e){}
+  },
+  evt(name,params){
+    if(!this.on||!this.fa)return;
+    try{this.fa.logEvent({name,params:params||{}}).catch(()=>{});}catch(e){}
+  }
+};
+Te.init();
+
+/* ---------- canvas ---------- */
+const stage=$('#stage'),cv=$('#cv'),ctx=cv.getContext('2d');
+let W=0,H=0,dpr=1;
+function resize(){
+  W=stage.clientWidth;H=stage.clientHeight;
+  dpr=Math.min(window.devicePixelRatio||1,2);
+  cv.width=W*dpr;cv.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize',resize);
+resize();
+
+/* ---------- sky zones ---------- */
+const SKY=[
+  {t:[255,214,165],b:[255,240,222]},
+  {t:[142,207,203],b:[232,247,241]},
+  {t:[244,158,140],b:[255,217,192]},
+  {t:[27,42,74],  b:[58,74,122]}
+];
+function skyColors(dist){
+  const c=(dist/600)%4, i=Math.floor(c), k=c-i;
+  const a=SKY[i%4], b=SKY[(i+1)%4];
+  const mix=(u,v)=>[0,1,2].map(j=>Math.round(lerp(u[j],v[j],k)));
+  return {top:mix(a.t,b.t), bot:mix(a.b,b.b), night:1-Math.min(1,Math.abs(((c+2)%4)-2)/1.2)};
+}
+function zoneIndex(dist){let z=0;for(let i=0;i<3;i++)if(dist>=[0,300,700][i])z=i;return z;}
+
+/* ---------- persistent ---------- */
+let best=store.get('best',0);
+let coins=store.get('coins',0);
+let garden=store.get('garden',[]);
+let owned=store.get('owned',['classic']);
+let curSkin=store.get('skin','classic');
+let tut=!store.get('tut',false);
+
+/* ---------- streak & daily ---------- */
+function updateStreak(){
+  const t2=todayStr();
+  const y=new Date(Date.now()-86400000).toISOString().slice(0,10);
+  let s=store.get('streak',{last:null,days:0});
+  if(s.last===t2) return s.days;
+  s.days = (s.last===y) ? s.days+1 : 1;
+  s.last=t2;
+  store.set('streak',s);
+  return s.days;
+}
+let streak={days:0,last:null};
+function streakMult(){return 1+Math.min(streak.days,7)*.1;}
+const DAILY_ATTEMPTS=3;
+function dailyInfo(){
+  const t2=todayStr();
+  let d=store.get('daily',{date:t2,best:0,attempts:DAILY_ATTEMPTS,done:false});
+  if(d.date!==t2){d={date:t2,best:0,attempts:DAILY_ATTEMPTS,done:false};store.set('daily',d);}
+  return d;
+}
+function saveDaily(d){store.set('daily',d);}
+let daily=false,dailySeed=0;
+function dailyRating(m){
+  if(m>=500)return{e:'⭐⭐⭐',n:t('r_gold')};
+  if(m>=350)return{e:'⭐⭐',n:t('r_tall')};
+  if(m>=250)return{e:'⭐',n:t('r_young')};
+  return{e:'🌱',n:t('r_sprout')};
+}
+
+/* ---------- run state ---------- */
+let state='menu';
+let head=null,pts=[],thorns=[],orbs=[],petals=[],floats=[];
+let camY=0,distM=0,distPx=0,speed=0,angle=0,steer=0;
+let bloom=0,bloomT=0,orbStreak=0,orbStreakT=0;
+let spawnY=0,shake=0,slowT=0,usedRevive=false,runCoins=0;
+let tGlobal=0,grazeFlash=0,zoneShown=-1,deadBonus=0;
+const countRun={orbs:0,grazes:0};
+let rand=Math.random;
+function rr(a,b){return a+rand()*(b-a);}
+
+function difficulty(){return clamp(distM/500,0,1);}
+function thornGap(){return lerp(170,102,difficulty());}
+function spawnPattern(){
+  const d=difficulty(),r=rand(),zi=zoneIndex(distM);
+  const cx=rr(70,W-70);
+  const thorn=(x,y,amp)=>({x,y,r:rr(11,15+d*9),amp:amp||0,x0:x,ph:rr(0,TAU),sp:rr(.8,1.6),minD:1e9,grazed:false});
+  const pend=(x,y)=>({x,y,r:13,pend:true,pivX:x,pivY:y-86,ph:rr(0,TAU),sp:rr(1.1,1.7),minD:1e9,grazed:false,x0:x,amp:0});
+  const orb=(x,y)=>({x,y,r:9,taken:false,ph:rr(0,TAU)});
+  if(r<.18){
+    thorns.push(zi>=1&&rand()<.35?pend(cx,spawnY):thorn(cx,spawnY));
+    if(rand()<.7)orbs.push(orb(rr(60,W-60),spawnY-rr(60,90)));
+  } else if(r<.36){
+    const gap=lerp(190,120,d);
+    const slot=rr(40,W-40);
+    thorns.push(thorn(clamp(slot-gap/2,40,W),spawnY));
+    thorns.push(thorn(clamp(slot+gap/2,0,W-40),spawnY));
+    orbs.push(orb(slot,spawnY-rr(40,70)));
+  } else if(r<.5){
+    thorns.push(thorn(cx,spawnY));
+    thorns.push(thorn(clamp(cx-rr(70,110),40,W-40),spawnY+rr(30,60)));
+    thorns.push(thorn(clamp(cx+rr(70,110),40,W-40),spawnY+rr(30,60)));
+  } else if(r<.64){
+    for(let i=0;i<3;i++)orbs.push(orb(clamp(cx+(i-1)*54,40,W-40),spawnY-i*26));
+  } else if(r<.82&&d>.15){
+    thorns.push(zi>=1&&rand()<.5?pend(cx,spawnY):thorn(cx,spawnY,rr(50,60+90*d)));
+  } else {
+    thorns.push(thorn(rr(40,W-40),spawnY));
+  }
+}
+function resetRun(){
+  pts=[];thorns=[];orbs=[];petals=[];floats=[];
+  distM=0;distPx=0;angle=0;steer=0;bloom=0;bloomT=0;orbStreak=0;runCoins=0;
+  shake=0;slowT=0;usedRevive=false;grazeFlash=0;zoneShown=-1;
+  head={x:W/2,y:0,r:7};
+  camY=head.y-H*.68;
+  spawnY=camY-160;
+  for(let i=0;i<26;i++)pts.push({x:W/2,y:80+i*6});
+}
+
+/* ---------- update ---------- */
+function update(dt){
+  tGlobal+=dt;
+  const ts=slowT>0?.3:1;slowT=Math.max(0,slowT-dt);
+  const d=dt*ts;
+  if(shake>0)shake=Math.max(0,shake-d*26);
+  grazeFlash=Math.max(0,grazeFlash-d*2);
+  for(const p of petals){p.t+=d;p.x+=p.vx*d;p.y+=p.vy*d;p.vy+=140*d;p.rot+=p.vr*d;}
+  petals=petals.filter(p=>p.t<p.life);
+  for(const f of floats)f.t+=d;
+  floats=floats.filter(f=>f.t<1);
+  if(state!=='play'||!head)return;
+
+  if(steer!==0){
+    angle=clamp(angle+steer*2.7*d,-1.13,1.13);
+    if(tut){store.set('tut',true);$('#hud-hint').classList.remove('show');}
+  } else angle*=Math.pow(.4,d);
+  speed=lerp(150,300,difficulty());
+  distPx+=speed*d;
+  const dm=speed*d/10;
+  distM+=dm;
+  head.x+=Math.sin(angle)*speed*d;
+  head.y-=Math.cos(angle)*speed*d;
+  if(head.x<14){head.x=14;angle=-angle;hap(6);}
+  if(head.x>W-14){head.x=W-14;angle=-angle;hap(6);}
+  const lastPt=pts[pts.length-1];
+  if(!lastPt||Math.hypot(head.x-lastPt.x,head.y-lastPt.y)>6.5){
+    pts.push({x:head.x,y:head.y});
+    if(pts.length>520)pts.splice(0,pts.length-520);
+  }
+  camY+=(head.y-H*.68-camY)*Math.min(1,d*6);
+  if(bloomT>0){bloomT-=d;if(bloomT<=0)bloom=0;}
+
+  while(spawnY>camY-380){spawnPattern();spawnY-=thornGap();}
+  thorns=thorns.filter(t=>t.y<camY+H+120);
+  orbs=orbs.filter(o=>o.y<camY+H+120&&!o.taken);
+  for(const t of thorns){
+    if(t.amp)t.x=clamp(t.x0+Math.sin(tGlobal*t.sp+t.ph)*t.amp,26,W-26);
+    if(t.pend){t.x=t.pivX+Math.sin(tGlobal*t.sp+t.ph)*70;t.y=t.pivY+Math.cos(tGlobal*t.sp+t.ph)*70;}
+  }
+
+  for(const o of orbs){
+    if(o.taken)continue;
+    if(Math.hypot(head.x-o.x,head.y-o.y)<o.r+head.r+3){
+      o.taken=true;orbStreakT=2;orbStreak=Math.min(orbStreak+1,6);
+      distM+=5;
+      const mult=streakMult();
+      const earn=Math.round(1*mult);
+      runCoins+=earn;coins+=earn;
+      countRun.orbs++;
+      bloom=Math.min(100,bloom+9);
+      Sfx.pluck(orbStreak);hap(8);
+      floats.push({x:o.x,y:o.y,text:'+'+earn+'☀',t:0,color:'#8A6A10',size:15});
+      sparkle(o.x,o.y,'#FFB84C',8);
+      if(bloom>=100&&!bloomT){bloomT=2.6;bloom=0;Sfx.bloom();hap([12,40,12]);Te.evt('bloom');
+        floats.push({x:head.x,y:head.y-30,text:t('bloomF'),t:0,color:'#E58BB1',size:24});
+        addMissionProgress('bloom',1);}
+    }
+  }
+  orbStreakT-=d;if(orbStreakT<=0)orbStreak=0;
+
+  for(const t of thorns){
+    const dd=Math.hypot(head.x-t.x,head.y-t.y);
+    if(dd<t.r+head.r){
+      if(bloomT>0){
+        t.dead=true;distM+=10;
+        Sfx.smash();hap(20);shake=Math.max(shake,5);
+        sparkle(t.x,t.y,'#8A9478',14);
+      } else { die(); return; }
+    } else if(!t.grazed){
+      t.minD=Math.min(t.minD,dd);
+      if(t.y>head.y+36){
+        t.grazed=true;
+        if(t.minD<t.r+head.r+20&&t.minD>=t.r+head.r){
+          bloom=Math.min(100,bloom+8);
+          grazeFlash=.4;
+          Sfx.graze();hap(5);
+          countRun.grazes++;
+          floats.push({x:t.x,y:t.y-24,text:t('close'),t:0,color:'#8A9478',size:14});
+          if(bloom>=100&&!bloomT){bloomT=2.6;bloom=0;Sfx.bloom();hap([12,40,12]);Te.evt('bloom');
+            floats.push({x:head.x,y:head.y-30,text:t('bloomF'),t:0,color:'#E58BB1',size:24});
+            addMissionProgress('bloom',1);}
+        }
+      }
+    }
+  }
+  thorns=thorns.filter(t=>!t.dead);
+
+  const zi=zoneIndex(distM);
+  if(zi!==zoneShown){
+    zoneShown=zi;
+    if(zi>0){
+      const names=[['zone0','zone0s'],['zone1','zone1s'],['zone2','zone2s']][zi];
+      const el=$('#zone-banner');
+      el.innerHTML=t(names[0])+'<small>'+t(names[1])+'</small>';
+      el.classList.add('show');
+      Sfx.zone();
+      setTimeout(()=>el.classList.remove('show'),2400);
+    }
+  }
+}
+function sparkle(x,y,color,n){
+  for(let i=0;i<n;i++){const a=rnd(0,TAU),s=rnd(30,150);
+    petals.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:0,life:rnd(.3,.6),rot:rnd(0,TAU),vr:rnd(-6,6),color,r:rnd(2,3.5)});}
+}
+function petalBurst(x,y){
+  const sk=skinById(curSkin);
+  const cols=[sk.flower,'#FFB84C','#FFFDF6',sk.leaf];
+  for(let i=0;i<26;i++){const a=rnd(0,TAU),s=rnd(40,190);
+    petals.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,t:0,life:rnd(.5,1),rot:rnd(0,TAU),vr:rnd(-8,8),
+      color:cols[i%4],r:rnd(2.5,4.5)});}
+}
+function die(){
+  if(state!=='play')return;
+  state='dead';
+  Ads.sessionDeaths++;
+  Sfx.death();hap(70);shake=12;slowT=.5;
+  petalBurst(head.x,head.y);
+  saveGarden();
+  const prevStreak=streak.days;
+  streak.days=updateStreak();
+  if(streak.days>prevStreak){toast(t('streakToast',{n:streak.days,m:streakMult().toFixed(1)}));Te.evt('streak_day',{day:streak.days,multiplier:Math.round(streakMult()*10)});}
+  const newBest=!daily&&distM>best;
+  let bonus=0;
+  if(newBest){best=Math.round(distM);store.set('best',best);bonus=25;coins+=bonus;deadBonus=bonus;}
+  addMissionProgress('orbs',countRun.orbs);
+  addMissionProgress('graze',countRun.grazes);
+  addMissionProgress('dist',Math.round(distM));
+  store.set('coins',coins);
+  Te.evt(daily?'daily_result':'run_end',{length_m:Math.round(distM),zone:zoneIndex(distM),suns:countRun.orbs,grazes:countRun.grazes,new_best:newBest?1:0,coins_earned:runCoins+(bonus||0),cause:'thorn'});
+  if(daily){
+    const d=dailyInfo();
+    d.attempts=Math.max(0,d.attempts-1);
+    d.best=Math.max(d.best,Math.round(distM));
+    if(d.attempts===0)d.done=true;
+    saveDaily(d);
+    Ads.runsSince++;
+    setTimeout(()=>{
+      if(state!=='dead')return;
+      if(d.attempts>0)startGame(true);
+      else showDailySummary(d);
+    },1100);
+    return;
+  }
+  Ads.runsSince++;
+  if(bonus)toast(t('bestBonus',{n:bonus}));
+  setTimeout(()=>{
+    if(state!=='dead')return;
+    $('#dead-title').textContent=newBest?t('newBest'):t('rests');
+    $('#dead-dist').innerHTML=Math.round(distM)+'<span> m</span>';
+    $('#dead-best').textContent=t('bestLine',{n:best});
+    $('#dead-earn').textContent=t('earned',{n:runCoins+(bonus?'+'+bonus:'')});
+    const db=$('#btn-double');
+    db.style.display=(adsOn()&&runCoins>0)?'flex':'none';
+    db.onclick=()=>Ads.showRewarded(AD_IDS.rewarded,()=>{
+      coins+=runCoins;store.set('coins',coins);
+      runCoins*=2;
+      $('#dead-earn').textContent=t('earned',{n:runCoins+(deadBonus||0)});
+      $('#btn-double').style.display='none';
+      Sfx.buy();hap(20);toast('☀ ×2!');
+      Te.evt('rv_complete',{placement:'RV_DOUBLE',ok:1});
+    },()=>{});
+    const rv=$('#btn-revive');
+    rv.style.display=(adsOn()&&!usedRevive&&distM>80)?'flex':'none';
+    rv.nextElementSibling.style.display=rv.style.display;
+    $('#dead').classList.remove('hidden');
+  },700);
+}
+function showDailySummary(d){
+  state='daily-sum';
+  const R=dailyRating(d.best);
+  $('#ds-rating').textContent=R.e;
+  $('#ds-name').textContent=R.n;
+  $('#ds-dist').textContent=d.best+' m';
+  $('#ds-note').textContent=d.best>=250?t('dSame'):t('dNote');
+  const ex=$('#btn-extra');
+  const canExtra=adsOn()&&(d.extra||0)<AD_RULES.dailyExtraCap;
+  ex.style.display=canExtra?'flex':'none';
+  ex.onclick=()=>{
+    Ads.showRewarded(AD_IDS.extraDaily,()=>{
+      const dd=dailyInfo();
+      dd.attempts=1;dd.extra=(dd.extra||0)+1;saveDaily(dd);
+      $('#daily-sum').classList.add('hidden');
+      updateDailyChip();Sfx.buy();hap(20);
+      startGame(true);
+    },()=>{});
+  };
+  $('#daily-sum').classList.remove('hidden');
+  Sfx.zone();
+}
+function saveGarden(){
+  const p=[];
+  for(let i=0;i<pts.length;i+=4){p.push([+(pts[i].x/W).toFixed(3),+(pts[i].y/1000).toFixed(3)]);}
+  if(p.length<8)return;
+  garden=garden.filter(g=>g.d<distM);
+  garden.push({d:Math.round(distM),p,fl:Math.floor(distM/50),sk:curSkin});
+  garden.sort((a,b)=>b.d-a.d);
+  garden=garden.slice(0,3);
+  store.set('garden',garden);
+}
+
+/* ---------- draw ---------- */
+function draw(dt){
+  const sc=skyColors(state==='play'?distM:80);
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,`rgb(${sc.top})`);g.addColorStop(1,`rgb(${sc.bot})`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  if(sc.night>0.05){
+    ctx.fillStyle='#FFF';
+    for(let i=0;i<40;i++){
+      const sx=(i*127.3)%W, sy=((i*211.7-camY*.1)%(H+40)+(H+40))%(H+40)-20;
+      ctx.globalAlpha=sc.night*(.3+.5*Math.abs(Math.sin(tGlobal+i)));
+      ctx.beginPath();ctx.arc(sx,sy,1.1,0,TAU);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
+  ctx.fillStyle='rgba(255,255,255,.28)';
+  for(let i=0;i<4;i++){
+    const cx2=(i*173.7)%W, cy2=((i*331.1-camY*.12)%(H+240)+(H+240))%(H+240)-120;
+    ctx.beginPath();ctx.ellipse(cx2,cy2,54,17,0,0,TAU);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx2+34,cy2+6,38,13,0,0,TAU);ctx.fill();
+  }
+  const shx=shake?rnd(-shake,shake):0, shy=shake?rnd(-shake,shake):0;
+  ctx.save();ctx.translate(shx,shy);
+  ctx.translate(0,-camY);
+  if(state==='menu'){drawGarden();ctx.restore();return;}
+  if(!head){ctx.restore();return;}
+  const sk=skinById(curSkin);
+  drawVine(pts,{live:true,flowers:Math.floor(distM/50),sk});
+  const zi=zoneIndex(distM);
+  for(const o of orbs)drawOrb(o);
+  for(const t of thorns)drawThorn(t,zi>=2);
+  const hx=head.x,hy=head.y;
+  if(bloomT>0){
+    const glow=ctx.createRadialGradient(hx,hy,0,hx,hy,42);
+    glow.addColorStop(0,'rgba(255,184,76,.5)');glow.addColorStop(1,'rgba(255,184,76,0)');
+    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(hx,hy,42,0,TAU);ctx.fill();
+    ctx.strokeStyle='rgba(229,139,177,'+(.6+.3*Math.sin(tGlobal*9))+')';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(hx,hy,13+Math.sin(tGlobal*9)*2,0,TAU);ctx.stroke();
+  }
+  ctx.fillStyle=sk.stroke;
+  ctx.beginPath();ctx.arc(hx,hy,head.r+2.4,0,TAU);ctx.fill();
+  ctx.fillStyle=sk.head;
+  ctx.beginPath();ctx.arc(hx,hy,head.r,0,TAU);ctx.fill();
+  for(const s of[-1,1]){
+    ctx.save();ctx.translate(hx,hy);ctx.rotate(angle+s*.9+Math.sin(tGlobal*6)*.08);
+    ctx.fillStyle=sk.leaf;
+    ctx.beginPath();ctx.ellipse(9,0,6.5,3,0,0,TAU);ctx.fill();
+    ctx.restore();
+  }
+  for(const p of petals){
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+    ctx.globalAlpha=1-p.t/p.life;
+    ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.ellipse(0,0,p.r*1.4,p.r*.8,0,0,TAU);ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+  for(const f of floats){
+    ctx.globalAlpha=1-f.t;
+    ctx.fillStyle=f.color;
+    ctx.font=`900 ${f.size}px ui-rounded,-apple-system,system-ui,sans-serif`;
+    ctx.textAlign='center';
+    ctx.fillText(f.text,f.x,f.y-f.t*30);
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+  drawHUD();
+}
+function drawVine(parr,opt){
+  if(parr.length<2)return;
+  const sk=skinById((opt&&opt.sk)||curSkin);
+  for(const pass of[0,1]){
+    ctx.strokeStyle=pass?sk.fill:sk.stroke;
+    ctx.lineWidth=pass?9:12;
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();
+    ctx.moveTo(parr[0].x,parr[0].y);
+    for(let i=1;i<parr.length;i++)ctx.lineTo(parr[i].x,parr[i].y);
+    ctx.stroke();
+  }
+  for(let i=8;i<parr.length-1;i+=7){
+    const p=parr[i],q=parr[i-1];
+    const a=Math.atan2(p.y-q.y,p.x-q.x)+Math.PI/2;
+    const side=(i/7)%2===0?1:-1;
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(a*side+Math.sin((opt&&opt.live?tGlobal*1.4:0)+i)*0.06);
+    ctx.fillStyle=sk.leaf;
+    ctx.beginPath();ctx.ellipse(7,0,7,3,0,0,TAU);ctx.fill();
+    ctx.restore();
+  }
+  const fl=opt&&opt.flowers||0;
+  const n=Math.min(fl,Math.floor(parr.length/9));
+  for(let k=1;k<=n;k++){
+    const idx=parr.length-1-k*9;
+    if(idx<4)break;
+    drawFlower(parr[idx].x,parr[idx].y,(k%3),sk);
+  }
+}
+function drawFlower(x,y,kind,sk){
+  sk=sk||skinById(curSkin);
+  const cols=[['#FF8FB0','#FFF'],[sk.flower,sk.fill],[sk.leaf,'#FFF']][kind%3];
+  for(let i=0;i<5;i++){const a=i/5*TAU+tGlobal*.15;
+    ctx.fillStyle=cols[0];
+    ctx.beginPath();ctx.ellipse(x+Math.cos(a)*5.5,y+Math.sin(a)*5.5,4,2.6,a,0,TAU);ctx.fill();}
+  ctx.fillStyle=cols[1];
+  ctx.beginPath();ctx.arc(x,y,2.6,0,TAU);ctx.fill();
+}
+function drawThorn(t,nightGlow){
+  if(t.pend){
+    ctx.strokeStyle='rgba(67,80,62,.4)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(t.pivX,t.pivY);ctx.lineTo(t.x,t.y);ctx.stroke();
+    ctx.fillStyle='#5E6B54';ctx.beginPath();ctx.arc(t.pivX,t.pivY,4,0,TAU);ctx.fill();
+  }
+  ctx.fillStyle='rgba(67,80,62,.18)';
+  ctx.beginPath();ctx.ellipse(t.x+3,t.y+4,t.r*1.05,t.r*.8,0,0,TAU);ctx.fill();
+  ctx.fillStyle=nightGlow?'#4A5E6E':'#5E6B54';
+  ctx.beginPath();ctx.arc(t.x,t.y,t.r,0,TAU);ctx.fill();
+  ctx.fillStyle=nightGlow?'#2E4254':'#4A5543';
+  for(let i=0;i<7;i++){const a=i/7*TAU+t.ph;
+    ctx.beginPath();ctx.arc(t.x+Math.cos(a)*t.r*.62,t.y+Math.sin(a)*t.r*.62,t.r*.3,0,TAU);ctx.fill();}
+  if(nightGlow){
+    ctx.strokeStyle='rgba(124,232,255,'+(.25+.2*Math.sin(tGlobal*3+t.ph))+')';
+    ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.arc(t.x,t.y,t.r+3,0,TAU);ctx.stroke();
+  }
+  ctx.fillStyle='rgba(255,255,255,.25)';
+  ctx.beginPath();ctx.arc(t.x-t.r*.32,t.y-t.r*.36,t.r*.3,0,TAU);ctx.fill();
+}
+function drawOrb(o){
+  const pulse=1+Math.sin(tGlobal*4+o.ph)*.12;
+  const glow=ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,20*pulse);
+  glow.addColorStop(0,'rgba(255,184,76,.55)');glow.addColorStop(1,'rgba(255,184,76,0)');
+  ctx.fillStyle=glow;ctx.beginPath();ctx.arc(o.x,o.y,20*pulse,0,TAU);ctx.fill();
+  ctx.fillStyle='#FFB84C';
+  ctx.beginPath();ctx.arc(o.x,o.y,7*pulse,0,TAU);ctx.fill();
+  ctx.fillStyle='#FFE3AD';
+  ctx.beginPath();ctx.arc(o.x-2,o.y-2,2.6,0,TAU);ctx.fill();
+}
+function drawGarden(){
+  garden.forEach((g,idx)=>{
+    if(g.p.length<2)return;
+    const baseY=H*.88;
+    let maxAbs=.001;
+    for(const [,ny] of g.p)maxAbs=Math.max(maxAbs,-ny);
+    const scale=(H*.72)/maxAbs;
+    const sk=skinById(g.sk||'classic');
+    const pth=g.p.map(([nx,ny])=>({x:nx*W,y:baseY+ny*scale+idx*6}));
+    for(const pass of[0,1]){
+      ctx.strokeStyle=pass?sk.fill:sk.stroke;
+      ctx.lineWidth=pass?7:10;
+      ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(pth[0].x,pth[0].y);
+      for(let i=1;i<pth.length;i++){
+        const sway=Math.sin(tGlobal*.7+i*.06+idx*2)*3;
+        ctx.lineTo(pth[i].x+sway,pth[i].y);
+      }
+      ctx.stroke();
+    }
+    for(let k=1;k<=Math.min(g.fl,5);k++){
+      const idx2=pth.length-1-k*Math.floor(pth.length/6);
+      if(idx2>0)drawFlower(pth[idx2].x+Math.sin(tGlobal*.7+idx2*.06)*3,pth[idx2].y,k,sk);
+    }
+  });
+}
+function drawHUD(){
+  $('#dist-chip').textContent=Math.round(distM)+' m';
+  $('#coin-chip').textContent='☀ '+runCoins;
+  const bx=36,by=64,r=17;
+  ctx.strokeStyle='rgba(67,80,62,.25)';ctx.lineWidth=4;
+  ctx.beginPath();ctx.arc(bx,by,r,0,TAU);ctx.stroke();
+  if(bloomT>0){
+    ctx.strokeStyle='#E58BB1';
+    ctx.beginPath();ctx.arc(bx,by,r,-Math.PI/2,-Math.PI/2+TAU*(bloomT/2.6));ctx.stroke();
+  } else {
+    ctx.strokeStyle=bloom>=100?'#E58BB1':'#F5A623';
+    ctx.beginPath();ctx.arc(bx,by,r,-Math.PI/2,-Math.PI/2+TAU*bloom/100);ctx.stroke();
+  }
+  drawFlower(bx,by,bloomT>0?1:0,null);
+  if(grazeFlash>0){
+    ctx.globalAlpha=grazeFlash;
+    ctx.strokeStyle='#FFF';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(bx,by,r+5,0,TAU);ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+}
+
+/* ---------- input ---------- */
+stage.addEventListener('pointerdown',e=>{
+  Sfx.ensure();
+  if(e.target.closest('button')||e.target.closest('.sheet'))return;
+  if(state==='play')setSteer(e.clientX-stage.getBoundingClientRect().left);
+});
+stage.addEventListener('pointermove',e=>{
+  if(state==='play'&&e.buttons)setSteer(e.clientX-stage.getBoundingClientRect().left);
+});
+window.addEventListener('pointerup',()=>{steer=0;});
+window.addEventListener('pointercancel',()=>{steer=0;});
+function setSteer(x){
+  if(state!=='play')return;
+  steer = x===null?0:(x<W/2?-1:1);
+}
+window.addEventListener('keydown',e=>{
+  if(e.code==='ArrowLeft')steer=-1;
+  if(e.code==='ArrowRight')steer=1;
+});
+window.addEventListener('keyup',e=>{
+  if(e.code==='ArrowLeft'||e.code==='ArrowRight')steer=0;
+});
+
+/* ---------- shop ---------- */
+function renderShop(){
+  $('#shop-coins').textContent=coins;
+  const list=$('#skin-list');list.innerHTML='';
+  for(const s of SKINS){
+    const own=owned.includes(s.id);
+    const eq=curSkin===s.id;
+    const row=document.createElement('div');
+    row.className='skin-row'+(eq?' equipped':'');
+    row.innerHTML=`<div class="sw" style="background:${s.leaf}33"><i style="background:${s.fill}"></i><b style="background:${s.flower}"></b></div>
+      <div class="skin-info"><b>${s.name}${eq?' '+t('on'):''}</b><span>${own?(eq?t('on'):t('tapEquip')):('☀ '+s.cost)}</span></div>`;
+    const btn=document.createElement('button');
+    btn.className='btn small '+(eq?'ghost':'sun');
+    btn.textContent=eq?'✓':own?t('equip'):t('buy');
+    btn.addEventListener('click',()=>{
+      if(eq)return;
+      if(own){curSkin=s.id;store.set('skin',curSkin);Te.evt('skin_equip',{skin_id:s.id});Sfx.ui();renderShop();}
+      else if(coins>=s.cost){coins-=s.cost;store.set('coins',coins);owned.push(s.id);store.set('owned',owned);
+        curSkin=s.id;store.set('skin',curSkin);Te.evt('skin_buy',{skin_id:s.id,price:s.cost,balance:coins});Sfx.buy();hap(20);toast(t('unlocked',{name:s.name}));renderShop();}
+      else {toast(t('needSun',{n:s.cost-coins}));Sfx.ui();}
+    });
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+
+/* ---------- missions ---------- */
+function renderMissions(){
+  $('#mis-coins').textContent=coins;
+  const m=getMissions();
+  const list=$('#mis-list');list.innerHTML='';
+  for(const it of m.list){
+    const done=it.prog>=it.goal;
+    const row=document.createElement('div');
+    row.className='mis-row'+(done?' done':'');
+    const pct=Math.min(100,Math.round(it.prog/it.goal*100));
+    row.innerHTML=`<div class="t"><span>${misText(it)}</span><span>☀ ${it.reward}</span></div>
+      <div class="bar"><i class="${done?'full':''}" style="width:${pct}%"></i></div>
+      <div style="font-size:12px;color:var(--dim);font-weight:800;margin-top:5px">${Math.min(it.prog,it.goal)}/${it.goal}${done?(it.claimed?' '+t('claimed'):' '+t('ready')):''}</div>`;
+    if(done&&!it.claimed){
+      const btn=document.createElement('button');
+      btn.className='btn small sun';
+      btn.style.marginTop='9px';
+      btn.textContent=t('claimReward')+' ☀ '+it.reward;
+      btn.addEventListener('click',()=>{
+        it.claimed=true;coins+=it.reward;store.set('coins',coins);
+        store.set('missions',m);
+        Te.evt('mission_claim',{mission_id:it.id,reward:it.reward});
+        Sfx.buy();hap(20);renderMissions();refreshMenu();
+      });
+      row.appendChild(btn);
+    }
+    list.appendChild(row);
+  }
+}
+
+/* ---------- flow ---------- */
+let toastT=null;
+function toast(msg){
+  const el=$('#toast');el.textContent=msg;el.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),1800);
+}
+function refreshMenu(){
+  $('#menu-best').textContent=best;
+  $('#menu-coins').textContent=coins;
+  $('#menu-streak').textContent=t('streakToast',{n:streak.days,m:streakMult().toFixed(1)}).replace('🔥 ','🔥 ');
+  const d=dailyInfo();
+  $('#daily-badge').textContent=d.attempts>0?('●'.repeat(d.attempts)):'✓';
+}
+function updateDailyChip(){
+  const el=$('#daily-chip');
+  if(!daily){el.style.display='none';return;}
+  const d=dailyInfo();
+  el.style.display='block';
+  el.textContent=t('dailyChip')+' · '+('●'.repeat(Math.max(0,d.attempts))+'○'.repeat(DAILY_ATTEMPTS-Math.max(0,d.attempts)));
+}
+function startGame(isDaily){
+  countRun.orbs=0;countRun.grazes=0;
+  daily=!!isDaily;
+  if(daily){
+    const d=dailyInfo();
+    dailySeed=xmur3('tendril-daily-'+d.date)();
+    rand=mulberry32(dailySeed);
+  } else rand=Math.random;
+  state='play';
+  $('#menu').classList.add('hidden');
+  $('#dead').classList.add('hidden');
+  $('#daily-sum').classList.add('hidden');
+  $('#hud').classList.add('show');
+  updateDailyChip();
+  resetRun();
+  Sfx.ensure();
+  if(tut)$('#hud-hint').classList.add('show');
+  Te.evt(daily?'daily_start':'run_start');
+  scheduleReminders();
+}
+function goMenu(){
+  state='menu';head=null;daily=false;camY=0;
+  $('#dead').classList.add('hidden');
+  $('#daily-sum').classList.add('hidden');
+  $('#pause').classList.add('hidden');
+  $('#hud').classList.remove('show');
+  $('#hud-hint').classList.remove('show');
+  $('#menu').classList.remove('hidden');
+  refreshMenu();
+}
+$('#btn-play').addEventListener('click',()=>{Sfx.ui();startGame(false);});
+$('#btn-daily').addEventListener('click',()=>{
+  Sfx.ui();
+  const d=dailyInfo();
+  if(d.attempts<=0){showDailySummary(d);return;}
+  startGame(true);
+});
+$('#btn-daily-share').addEventListener('click',()=>{Sfx.ui();Te.evt('share_tapped',{source:'daily'});shareDaily(dailyInfo());});
+$('#btn-daily-home').addEventListener('click',()=>{Sfx.ui();goMenu();});
+$('#btn-retry').addEventListener('click',()=>{
+  Sfx.ui();
+  $('#dead').classList.add('hidden');
+  Ads.maybeInterstitial(()=>startGame(false));
+});
+$('#btn-home').addEventListener('click',()=>{Sfx.ui();goMenu();});
+$('#btn-share').addEventListener('click',()=>{Te.evt('share_tapped',{source:'result'});shareScore();});
+$('#menu-share').addEventListener('click',()=>{Te.evt('share_tapped',{source:'menu'});shareScore();});
+$('#btn-revive').addEventListener('click',()=>{
+  Sfx.ui();
+  $('#dead').classList.add('hidden');
+  Ads.showRewarded(AD_IDS.revive,()=>{
+    usedRevive=true;Sfx.revive();
+    thorns=thorns.filter(t=>Math.hypot(t.x-head.x,t.y-head.y)>170||t.y<camY-40);
+    bloomT=2.8;bloom=100;
+    state='play';
+    petalBurst(head.x,head.y);
+  },()=>{$('#dead').classList.remove('hidden');});
+});
+$('#btn-pause').addEventListener('click',()=>{
+  if(state!=='play')return;
+  Sfx.ui();steer=0;
+  state='pause';
+  $('#pause').classList.remove('hidden');
+});
+$('#btn-resume').addEventListener('click',()=>{
+  Sfx.ui();
+  $('#pause').classList.add('hidden');
+  state='play';
+});
+$('#btn-quit-run').addEventListener('click',()=>{
+  Sfx.ui();
+  $('#pause').classList.add('hidden');
+  goMenu();
+});
+$('#btn-reset').addEventListener('click',()=>{
+  if(!confirm(t('confirmReset')))return;
+  ['coins','owned','skin','missions','best','garden','tut','streak','daily'].forEach(k=>store.set(k,null));
+  coins=0;owned=['classic'];curSkin='classic';best=0;garden=[];tut=true;
+  store.set('coins',0);store.set('owned',owned);store.set('skin',curSkin);store.set('best',0);store.set('garden',[]);
+  streak={last:null,days:0};
+  getMissions();
+  refreshMenu();
+  toast(t('progressReset'));
+  goMenu();
+});
+function toggleSound(){
+  Sfx.on=!Sfx.on;store.set('sound',Sfx.on);
+  $('#menu-mute').textContent=Sfx.on?'🔊':'🔇';
+  if(Sfx.on){Sfx.ensure();Sfx.ui();}
+}
+$('#menu-mute').addEventListener('click',toggleSound);
+$('#menu-haptics').addEventListener('click',()=>{
+  hapticsOn=!hapticsOn;store.set('haptics',hapticsOn);
+  $('#menu-haptics').style.opacity=hapticsOn?1:.4;
+  if(hapticsOn)hap(30);
+});
+$('#btn-shop').addEventListener('click',()=>{Sfx.ui();Te.evt('shop_open');renderShop();$('#shop').classList.remove('hidden');});
+$('#shop-close').addEventListener('click',()=>{Sfx.ui();$('#shop').classList.add('hidden');refreshMenu();});
+$('#btn-missions').addEventListener('click',()=>{Sfx.ui();renderMissions();$('#missions').classList.remove('hidden');});
+$('#mis-close').addEventListener('click',()=>{Sfx.ui();$('#missions').classList.add('hidden');refreshMenu();});
+$('#btn-lang').addEventListener('click',()=>{Sfx.ui();renderLangList();$('#langsheet').classList.remove('hidden');});
+$('#lang-close').addEventListener('click',()=>{Sfx.ui();$('#langsheet').classList.add('hidden');});
+$('#howto-link').addEventListener('click',()=>{Sfx.ui();$('#howto').classList.remove('hidden');});
+$('#howto-ok').addEventListener('click',()=>{Sfx.ui();$('#howto').classList.add('hidden');});
+
+/* ---------- reminders ---------- */
+async function scheduleReminders(){
+  if(!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))return;
+  try{
+    const LN=window.Capacitor.Plugins.LocalNotifications;
+    if(!LN)return;
+    const perm=await LN.requestPermissions();
+    if(perm.display!=='granted')return;
+    Te.evt('notif_enabled');
+    await LN.schedule({
+      notifications:[{
+        id:1101,
+        title:t('nTitle'),
+        body:t('nBody'),
+        schedule:{on:{hour:19,minute:0},allowWhileIdle:true,repeats:true}
+      }]
+    });
+  }catch(e){}
+}
+
+/* ---------- share ---------- */
+async function shareScore(){
+  Sfx.ui();
+  const shown=state==='menu'?best:Math.round(distM);
+  const sk=skinById(curSkin);
+  const c=document.createElement('canvas');c.width=900;c.height=1350;
+  const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,1350);
+  g.addColorStop(0,'#FFD6A5');g.addColorStop(1,'#8ECFCB');
+  x.fillStyle=g;x.fillRect(0,0,900,1350);
+  x.strokeStyle=sk.stroke;x.lineWidth=22;x.lineCap='round';
+  x.beginPath();x.moveTo(450,1250);
+  for(let i=1;i<=10;i++){x.lineTo(450+Math.sin(i*1.1)*90,1250-i*105);}
+  x.stroke();
+  x.strokeStyle=sk.fill;x.lineWidth=15;x.stroke();
+  for(let i=1;i<=5;i++){const fx2=450+Math.sin(i*2.2)*90,fy2=1250-i*210;
+    for(let k2=0;k2<5;k2++){const a=k2/5*TAU;
+      x.fillStyle=sk.flower;
+      x.beginPath();x.ellipse(fx2+Math.cos(a)*16,fy2+Math.sin(a)*16,10,6.5,a,0,TAU);x.fill();}}
+  x.textAlign='center';
+  x.fillStyle='#43503E';
+  x.font='900 96px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillText('TENDRIL',450,180);
+  x.font='800 34px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillStyle='rgba(67,80,62,.6)';
+  x.fillText('· '+t('tagline').toUpperCase()+' ·',450,238);
+  x.font='900 250px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillStyle='#FFFDF6';
+  x.shadowColor='rgba(67,80,62,.3)';x.shadowOffsetY=8;
+  x.fillText(String(shown),450,760);
+  x.shadowColor='transparent';
+  x.font='800 44px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillText(t('sTall'),450,830);
+  x.font='700 38px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillStyle='#43503E';
+  x.fillText(t('sBest',{n:best}),450,1280);
+  const text=t('shareText',{n:shown});
+  try{
+    const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+    const file=new File([blob],'tendril.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text});return;}
+    if(navigator.share){await navigator.share({text});return;}
+  }catch(e){}
+  const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='tendril.png';a.click();
+  toast(t('cardSaved'));
+}
+async function shareDaily(d){
+  Sfx.ui();
+  const R=dailyRating(d.best);
+  const c=document.createElement('canvas');c.width=900;c.height=1350;
+  const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,1350);
+  g.addColorStop(0,'#C8BCF5');g.addColorStop(1,'#8ECFCB');
+  x.fillStyle=g;x.fillRect(0,0,900,1350);
+  x.textAlign='center';
+  x.fillStyle='#43503E';
+  x.font='900 84px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillText('TENDRIL',450,180);
+  x.font='800 36px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillStyle='rgba(67,80,62,.65)';
+  x.fillText('· '+t('dailyTitle')+' · '+new Date().toDateString().slice(4,10).toUpperCase()+' ·',450,244);
+  x.font='900 210px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillStyle='#FFFDF6';
+  x.shadowColor='rgba(67,80,62,.3)';x.shadowOffsetY=8;
+  x.fillText(d.best+'m',450,600);
+  x.shadowColor='transparent';
+  x.font='900 110px serif';
+  x.fillText(R.e,450,760);
+  x.font='900 52px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillStyle='#43503E';
+  x.fillText(R.n,450,860);
+  x.font='700 38px ui-rounded,-apple-system,system-ui,sans-serif';
+  x.fillStyle='#43503E';
+  x.fillText(t('sSame'),450,1240);
+  x.fillStyle='#7C6CE0';
+  x.fillText(t('dBeat'),450,1295);
+  const text=t('dailyShareText',{n:d.best,e:R.e,r:R.n});
+  try{
+    const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+    const file=new File([blob],'tendril-daily.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text});return;}
+    if(navigator.share){await navigator.share({text});return;}
+  }catch(e){}
+  const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='tendril-daily.png';a.click();
+  toast(t('cardSaved'));
+}
+
+/* ---------- boot & loop ---------- */
+applyLocale();
+$('#menu-mute').textContent=Sfx.on?'🔊':'🔇';
+$('#menu-haptics').style.opacity=hapticsOn?1:.4;
+refreshMenu();
+setTimeout(()=>Ads.maybeAppOpen(),800);
+let last=performance.now(),lastFrame=0;
+function frame(now){
+  try{
+    lastFrame=performance.now();
+    const dt=Math.min((now-last)/1000,.05);last=now;
+    if(state!=='pause')update(dt);
+    draw(dt);
+  }catch(e){console.error('frame error:',e);}
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+/* rAF 看门狗：页面被节流/失焦导致动画帧停摆时，用定时器兜底驱动循环 */
+setInterval(()=>{
+  if(state!=='menu'&&performance.now()-lastFrame>300)frame(performance.now());
+},250);
+</script>
+</body>
+</html>

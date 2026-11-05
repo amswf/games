@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taamoo Games — play free browser games</title>
+<meta name="description" content="Four free browser games from Taamoo Studio: Tendril, GridPop, Starhop and Starlit Garden. No installs, no accounts — just play.">
+<meta property="og:title" content="Taamoo Games — play free browser games">
+<meta property="og:description" content="Four free browser games from Taamoo Studio: Tendril, GridPop, Starhop and Starlit Garden. No installs, no accounts — just play.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://games.taamoo.com/">
+<link rel="icon" href="starlit-garden/icon.svg" type="image/svg+xml">
+<style>
+  :root{
+    --paper:#FFF8EC; --ink:#3A3226; --dim:#8A7E66; --coral:#F07A5A; --cream:#FFFDF6; --leaf:#5E9B5C;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:ui-rounded,-apple-system,"SF Pro Rounded","Segoe UI",system-ui,"PingFang SC",sans-serif;
+    color:var(--ink);background:var(--paper);
+    background-image:radial-gradient(90% 40% at 50% -5%,rgba(245,184,64,.14),transparent),
+      radial-gradient(70% 40% at 100% 100%,rgba(94,155,92,.1),transparent);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:56px 20px 40px}
+  header{text-align:center;margin-bottom:36px}
+  header .mark{display:inline-flex;align-items:center;gap:9px;font-weight:900;font-size:17px;color:var(--dim);
+    text-decoration:none;letter-spacing:.02em}
+  header .mark .dot{width:10px;height:10px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 3px rgba(240,122,90,.2)}
+  header h1{font-size:clamp(34px,6.5vw,52px);font-weight:900;letter-spacing:-.01em;margin-top:18px}
+  header p{margin-top:12px;font-size:16px;font-weight:600;color:var(--dim)}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:760px;width:100%}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+  a.card{display:flex;flex-direction:column;gap:10px;text-decoration:none;color:var(--ink);background:var(--cream);
+    border:1px solid rgba(58,50,38,.1);border-radius:24px;padding:26px 24px 20px;transition:transform .12s,box-shadow .12s}
+  a.card:hover{transform:translateY(-4px);box-shadow:0 16px 36px rgba(58,50,38,.12)}
+  a.card:active{transform:scale(.97)}
+  a.card .gl{font-size:38px;filter:drop-shadow(0 5px 10px rgba(58,50,38,.15))}
+  a.card .nm{font-weight:900;font-size:19px}
+  a.card .gn{font-size:13.5px;font-weight:600;color:var(--dim);line-height:1.55}
+  a.card .play{margin-top:8px;font-size:12.5px;font-weight:900;letter-spacing:.14em;color:var(--leaf);display:flex;align-items:center;gap:6px}
+  a.card .lang{font-size:11px;font-weight:800;letter-spacing:.06em;color:rgba(58,50,38,.45);text-transform:uppercase}
+  footer{margin-top:36px;font-size:12.5px;font-weight:700;color:rgba(58,50,38,.4);text-align:center}
+  footer a{color:inherit;text-decoration:none}
+  footer a:hover{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="mark" href="https://taamoo.com/"><span class="dot"></span>Taamoo Studio</a>
+  <h1>play, right here</h1>
+  <p>Four little games. No installs, no accounts — pick one and play.</p>
+</header>
+
+<div class="grid">
+  <a class="card" href="/tendril/">
+    <span class="gl">🌿</span>
+    <span class="nm">Tendril</span>
+    <span class="gn">Grow gently, graze bravely — steer an ever-growing vine as close to the thorns as you dare.</span>
+    <span class="lang">English</span>
+    <span class="play">▶ PLAY</span>
+  </a>
+  <a class="card" href="/gridpop/">
+    <span class="gl">🧩</span>
+    <span class="nm">GridPop</span>
+    <span class="gn">Fill lines and chase combos in a cozy little block puzzle.</span>
+    <span class="lang">English</span>
+    <span class="play">▶ PLAY</span>
+  </a>
+  <a class="card" href="/starhop/">
+    <span class="gl">🪐</span>
+    <span class="nm">Starhop</span>
+    <span class="gn">One tap, another tiny world — chain planet-to-planet hops in an endless gravity climb.</span>
+    <span class="lang">English</span>
+    <span class="play">▶ PLAY</span>
+  </a>
+  <a class="card" href="/starlit-garden/">
+    <span class="gl">✨</span>
+    <span class="nm">Starlit Garden</span>
+    <span class="gn">星光花园 — tap a starflower to flip its glow, and light up the whole night garden. 30 gardens, no timers.</span>
+    <span class="lang">中文界面</span>
+    <span class="play">▶ PLAY</span>
+  </a>
+</div>
+
+<footer>© 2026 <a href="https://taamoo.com/">Taamoo Studio</a> · taamoo.com</footer>
+
+</body>
+</html>

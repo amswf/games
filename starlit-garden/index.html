@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#091329">
+<meta name="description" content="星光花园——一指轻触，把夜色慢慢点亮的解谜小游戏，离线可玩。">
+<title>星光花园 · Starlit Garden</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 夜空背景：渐变 + 光晕 + 星星(JS) + 山丘 -->
+<div id="sky" aria-hidden="true">
+  <div class="sky-glow"></div>
+  <svg class="sky-hill" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,88 Q50,78 100,94 L100,100 L0,100 Z"/></svg>
+</div>
+
+<!-- 全局 SVG 渐变与滤镜 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="petalLit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#91F0C9" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#91F0C9" stop-opacity="0.12"/>
+    </linearGradient>
+    <linearGradient id="petalDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.025"/>
+    </linearGradient>
+    <filter id="bloom" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+</svg>
+
+<main id="app">
+  <header id="topbar">
+    <button type="button" id="btn-back" class="icon-btn" aria-label="主页"><span id="back-icon">✦</span></button>
+    <div class="brand">STARLIT GARDEN</div>
+    <button type="button" id="btn-sound" class="icon-btn" aria-label="音效开关"></button>
+  </header>
+
+  <!-- 首页 -->
+  <section id="screen-home" class="screen active">
+    <div class="home-top">
+      <div class="slogan">一指轻触 · 满园星光</div>
+      <h1 class="home-title">星光花园</h1>
+      <div class="home-sub">把夜色，慢慢点亮。</div>
+    </div>
+    <div id="hero" class="hero" aria-hidden="true">
+      <div class="hero-ring r1"></div>
+      <div class="hero-ring r2"></div>
+      <div class="hero-ring r3"></div>
+    </div>
+    <div class="home-meta"><span>✧&ensp;30 个花园</span><span>♧&ensp;随心慢玩</span></div>
+    <button type="button" id="btn-continue" class="btn-primary"><span>继续旅程</span><span class="arrow">→</span></button>
+    <button type="button" id="btn-explore" class="btn-ghost">探索所有关卡</button>
+    <div class="home-bottom">
+      <button type="button" id="btn-privacy" class="text-btn dim small">隐私说明</button>
+      <div class="star-count"><span>收集的星光</span><span class="count" id="total-stars"></span></div>
+    </div>
+  </section>
+
+  <!-- 游戏屏 -->
+  <section id="screen-play" class="screen">
+    <div class="play-top"><span id="play-code">GARDEN 01</span><span id="play-chapter">月光初绽</span></div>
+    <div class="play-title">
+      <h1>唤醒这一片星光</h1>
+      <div class="moves"><span id="play-moves">0</span><span class="unit">步</span></div>
+    </div>
+    <div id="capsules" class="capsules" aria-hidden="true"></div>
+    <div class="progress-text"><span id="play-lit">已点亮 0 / 16</span><span>全部亮起即可通关</span></div>
+    <div class="board-wrap"><div id="board" class="board" style="--n:4"></div></div>
+    <p class="rule-text">轻点星花，同时翻转它与上下左右的光芒</p>
+    <div class="actions">
+      <button type="button" id="btn-restart" class="action"><span class="ico">↻</span><span>重来</span></button>
+      <button type="button" id="btn-hint" class="action"><span class="ico">✧</span><span>提示</span></button>
+      <button type="button" id="btn-help" class="action"><span class="ico">?</span><span>玩法</span></button>
+    </div>
+  </section>
+
+  <!-- 关卡地图 -->
+  <section id="screen-map" class="screen">
+    <h1 class="map-title">你的星光旅程</h1>
+    <div class="map-sub">一步一片光，收集属于你的银河。</div>
+    <div id="map-scroll" class="map-scroll"></div>
+    <div id="map-footer" class="map-footer"></div>
+  </section>
+
+  <!-- 通关遮罩（内容由 game.js 填充） -->
+  <div id="victory" class="victory" aria-live="polite"></div>
+
+  <!-- 玩法说明 -->
+  <div id="sheet-help" class="sheet" role="dialog" aria-modal="true" aria-label="玩法说明">
+    <div class="sheet-mask"></div>
+    <div class="sheet-card">
+      <h2>让星光连成花园</h2>
+      <p>轻点一朵星花，它和上下左右相邻的星花会一起翻转：暗的亮起，亮的熄灭。让所有星花亮起，即可进入下一关。</p>
+      <p>没有倒计时，慢慢想就好。使用提示会标记下一朵可点击的花。</p>
+      <p>星级：在参考步数内完成获 3 星；超过获 2 星；使用提示获 1 星。最佳星级会自动保存。</p>
+      <button type="button" id="btn-help-close" class="text-btn mint">开始点亮</button>
+    </div>
+  </div>
+
+  <!-- 隐私说明 -->
+  <div id="sheet-privacy" class="sheet" role="dialog" aria-modal="true" aria-label="隐私说明">
+    <div class="sheet-mask"></div>
+    <div class="sheet-card">
+      <h2>隐私说明</h2>
+      <p>星光花园无需注册，完全在浏览器中离线运行。游戏不收集或向开发者传输个人信息，不包含广告、分析或追踪代码。</p>
+      <p>关卡星级和音效设置仅保存在浏览器的本地存储中，用于恢复游戏进度。清除浏览器数据即可删除这些本地进度。</p>
+      <p>若你主动通过页面上的联系方式寻求支持，所发送的信息仅用于处理你的请求。</p>
+      <button type="button" id="btn-privacy-close" class="text-btn mint">关闭</button>
+    </div>
+  </div>
+</main>
+
+<script src="game.js"></script>
+</body>
+</html>
