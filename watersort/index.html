@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#141A2E">
+<title>Aqua Sort — Water Puzzle</title>
+<style>
+  :root{
+    --bg:#141A2E; --ink:#EAF0FF; --dim:#8A93B8; --gold:#FFC857; --panel:#1C2440;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{height:100%;overflow:hidden;background:var(--bg);overscroll-behavior:none;touch-action:manipulation}
+  body{font-family:ui-rounded,-apple-system,"SF Pro Rounded","Segoe UI",system-ui,sans-serif;color:var(--ink)}
+  #top{position:fixed;top:0;left:0;right:0;padding:calc(14px + env(safe-area-inset-top)) 20px 10px;
+    display:flex;justify-content:space-between;align-items:center;z-index:5}
+  #lv{font-weight:900;font-size:22px;letter-spacing:.06em}
+  #top .right{display:flex;gap:8px}
+  .iconbtn{width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.07);color:var(--ink);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .iconbtn:active{transform:scale(.92)}
+  #bottom{position:fixed;bottom:0;left:0;right:0;padding:12px 20px calc(18px + env(safe-area-inset-bottom));
+    display:flex;justify-content:center;gap:12px;z-index:5}
+  .act{border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15px;color:var(--ink);
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:16px;
+    padding:13px 20px;display:flex;align-items:center;gap:8px;min-width:96px;justify-content:center}
+  .act:active{transform:scale(.95)}
+  .act b{color:var(--gold)}
+  .act.dim{opacity:.35}
+  #hint{position:fixed;left:0;right:0;top:12%;text-align:center;font-weight:900;font-size:19px;
+    color:var(--gold);text-shadow:0 2px 12px rgba(0,0,0,.5);opacity:0;transition:opacity .3s;z-index:6;pointer-events:none}
+  #hint.show{opacity:1}
+  #win{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;
+    background:rgba(8,12,26,.55);opacity:0;pointer-events:none;transition:opacity .25s}
+  #win.show{opacity:1;pointer-events:auto}
+  #win .card{background:var(--panel);border:1px solid rgba(255,255,255,.1);border-radius:26px;
+    padding:30px 40px;text-align:center;transform:translateY(10px);transition:transform .25s}
+  #win.show .card{transform:none}
+  #win h2{font-size:26px;font-weight:900;color:var(--gold);margin-bottom:6px}
+  #win p{color:var(--dim);font-weight:700;font-size:14px}
+  #win .badge{margin-top:10px;font-size:13px;font-weight:800;color:#7CE8B8}
+  #toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(14px);
+    background:rgba(28,36,64,.95);border:1px solid rgba(255,255,255,.12);padding:10px 18px;border-radius:14px;
+    font-size:14px;font-weight:700;opacity:0;transition:all .25s;z-index:12;pointer-events:none;white-space:nowrap}
+  #toast.show{opacity:1;transform:translateX(-50%)}
+  #dbg{position:fixed;bottom:70px;left:8px;z-index:9;display:none;background:rgba(0,0,0,.6);
+    color:#7CE8B8;font-size:11px;padding:6px 8px;border-radius:8px;font-family:monospace}
+</style>
+</head>
+<body>
+<div id="top">
+  <div id="lv">LEVEL 1</div>
+  <div class="right">
+    <button class="iconbtn" id="btn-dbg">⚙</button>
+  </div>
+</div>
+<div id="bottom">
+  <button class="act" id="btn-undo">↩ <b id="undo-n">5</b></button>
+  <button class="act" id="btn-restart">⟳ <span>RESTART</span></button>
+  <button class="act" id="btn-hint">💡 <b id="hint-n">3</b></button>
+</div>
+<div id="hint"></div>
+<div id="win"><div class="card"><h2>LEVEL COMPLETE!</h2><p id="win-sub">Nice pouring</p><div class="badge" id="win-badge"></div></div></div>
+<div id="toast"></div>
+<div id="dbg"></div>
+
+<canvas id="cv"></canvas>
+
+<script>
+window.__errs=[];
+window.addEventListener('error',function(e){window.__errs.push(e.message+' @'+(e.filename||'')+':'+e.lineno);});
+window.addEventListener('unhandledrejection',function(e){window.__errs.push('promise: '+e.reason);});
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   AQUA SORT — water sort puzzle
+   · levels generated in reverse then VERIFIED solvable by BFS solver
+   · hint = solver's next move (always correct)
+   · hidden-color mode unlocks at level 13+
+   ===================================================================== */
+const $=s=>document.querySelector(s);
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const store={get(k,d){try{const v=localStorage.getItem('as:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
+             set(k,v){try{localStorage.setItem('as:'+k,JSON.stringify(v));}catch(e){}}};
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+/* ---------- palette ---------- */
+const COLORS=[
+  '#FF6B6B','#4ECDC4','#FFC857','#7C6CE0','#5EE6A8','#F78FB3',
+  '#6DC5FF','#FF9F45','#B8E28A','#E58BB1','#7FE3E0','#C9A86A'
+];
+const UNKNOWN='#3A4258';
+
+/* ---------- level formula & generator ---------- */
+function genLevel(L){
+  const colors=Math.min(3+Math.floor((L-1)/5),10);
+  const empties=3;
+  const tubes=colors+empties;
+  const revPours=25+Math.floor(L*1.2);
+  const hidden=L>12&&L%3===0;
+  for(let attempt=0;attempt<40;attempt++){
+    const st=[];
+    for(let c=0;c<colors;c++)st.push([c,c,c,c]);
+    for(let e=0;e<empties;e++)st.push([]);
+    let pours=0;
+    for(let k=0;k<revPours&&pours<revPours*0.8;k++){
+      const a=Math.floor(Math.random()*tubes);
+      if(!st[a].length)continue;
+      const b=Math.floor(Math.random()*tubes);
+      if(b===a||st[b].length>=CAP)continue;
+      const blk=topBlock(st[a]),space=CAP-st[b].length;
+      const mv=1+Math.floor(Math.random()*Math.min(blk,space));
+      for(let i=0;i<mv;i++)st[b].push(st[a].pop());
+      pours++;
+    }
+    if(pours<revPours*0.8)continue;
+    if(solved(st))continue;
+    const moves=solve(st.map(t=>t.slice()),200000);
+    if(!moves)continue;
+    const minD=L<=6?1:Math.min(2+Math.floor(L/3),12);
+    if(moves.length<minD)continue;
+    if(moves.length>40)continue;
+    return {tubes:st,hidden,solverMoves:moves.length};
+  }
+  const st=[[0,0,0,0],[1,1,1,1],[2,2,2,2],[],[],[]];
+  return {tubes:st,hidden:false,solverMoves:3};
+}
+
+/* ---------- state ---------- */
+const CAP=4;
+let level=store.get('level',1);
+let tubes=[];let N=0;
+let sel=-1,undoStack=[],undos=5,hints=3;
+let busy=false,won=false,pulseTube=-1,deadBonus=0;
+
+/* ---------- rules helpers ---------- */
+function topBlock(t){let n=1;for(let i=t.length-2;i>=0&&t[i]===t[t.length-1];i--)n++;return n;}
+function topColor(t){return t.length?t[t.length-1]:-1;}
+function solved(st){return st.every(t=>t.length===0||(t.length===CAP&&t.every(c=>c===t[0])));}
+function stateKey(st){return st.map(t=>t.join('.')||'_').sort().join('|');}
+function* legalMoves(st){
+  for(let a=0;a<st.length;a++){
+    if(!st[a].length)continue;
+    for(let b=0;b<st.length;b++){
+      if(a===b||st[b].length>=CAP)continue;
+      const same=topColor(st[a])===topColor(st[b]);
+      if(st[b].length>0&&!same)continue;
+      if(st[b].length===0&&st[a].length===CAP)continue;
+      yield [a,b];
+    }
+  }
+}
+function doPour(st,a,b){
+  const t=st[a].slice(),d=st[b].slice();
+  const mv=Math.min(topBlock(t),CAP-d.length);
+  for(let i=0;i<mv;i++)d.push(t.pop());
+  st[a]=t;st[b]=d;
+}
+
+/* ---------- solver (BFS, canonical states) ---------- */
+function solve(start,capVisited){
+  if(solved(start))return [];
+  const prev=new Map(),states=new Map();
+  const k0=stateKey(start);
+  prev.set(k0,null);states.set(k0,start.map(t=>t.slice()));
+  const q=[k0];let head=0;
+  while(head<q.length&&q.length<capVisited){
+    const k=q[head++];const st=states.get(k);
+    for(const [a,b] of legalMoves(st)){
+      const ns=st.map(t=>t.slice());
+      doPour(ns,a,b);
+      const nk=stateKey(ns);
+      if(!prev.has(nk)){
+        prev.set(nk,{pk:k,mv:[a,b]});states.set(nk,ns);
+        if(solved(ns)){
+          const moves=[];let cur=nk;
+          while(cur!==k0){const p=prev.get(cur);moves.push(p.mv);cur=p.pk;}
+          moves.reverse();return moves;
+        }
+        q.push(nk);
+      }
+    }
+  }
+  return null;
+}
+
+function loadLevel(L){
+  $('#hint').textContent='POURING…';
+  $('#hint').classList.add('show');
+  const g=genLevel(L);
+  tubes=g.tubes.map(t=>({c:t.slice(),hidden:g.hidden}));
+  N=tubes.length;
+  sel=-1;undoStack=[];undos=5;hints=3;won=false;busy=false;
+  $('#lv').textContent='LEVEL '+L;
+  $('#undo-n').textContent=undos;
+  $('#hint-n').textContent=hints;
+  layoutTubes();
+}
+
+/* ---------- layout ---------- */
+let W=0,Hh=0,TW=64,TH=250,GY=0,GX=0,cols=0;
+function layoutTubes(){
+  const dpr=Math.min(devicePixelRatio||1,2);
+  W=innerWidth;Hh=innerHeight;
+  cv.width=W*dpr;cv.height=Hh*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  cols=Math.ceil(Math.sqrt(N*1.9));
+  const rows=Math.ceil(N/cols);
+  TW=clamp(Math.min((W-24-(cols-1)*18)/cols,70),48,70);
+  TH=clamp((Hh-220)/rows-26,120,270);
+  GY=96+Math.max(0,(Hh-96-110-rows*(TH+26))/2);
+  const totalW=cols*TW+(cols-1)*18;
+  GX=(W-totalW)/2;
+  // per-tube x,y
+  tubes.forEach((t,i)=>{
+    const r=Math.floor(i/cols),c=i%cols;
+    const rowCount=Math.min(cols,N-r*cols);
+    const rowW=rowCount*TW+(rowCount-1)*18;
+    const x0=(W-rowW)/2;
+    t.x=x0+c*(TW+18);t.y=GY+(rows-1-r)*(TH+26);
+  });
+}
+
+/* ---------- pour animation ---------- */
+let anim=null;
+function startPour(a,b,mv,cb){
+  busy=true;
+  anim={a,b,mv,t:0,dur:0.24*mv+0.12,cb};
+}
+function stepAnim(dt){
+  if(!anim)return;
+  anim.t+=dt;
+  if(anim.t>=anim.dur){
+    const a=anim.a,b=anim.b;
+    const blk=topBlock(tubes[a].c),space=CAP-tubes[b].c.length;
+    const mv=Math.min(blk,space,anim.mv);
+    for(let i=0;i<mv;i++)tubes[b].c.push(tubes[a].c.pop());
+    if(tubes[a].hidden&&tubes[a].c.length===0)tubes[a].hidden=false;
+    if(tubes[b].hidden&&tubes[b].c.length>0)tubes[b].hidden=false;
+    busy=false;
+    const cb=anim.cb;anim=null;
+    cb&&cb(mv);
+  }
+}
+
+/* ---------- win ---------- */
+function checkWin(){
+  if(won)return;
+  if(!solved(tubes.map(t=>t.c)))return;
+  won=true;
+  const perfect=undos===5&&hints===3;
+  $('#win-badge').textContent=perfect?'✦ PERFECT — no hints, no undos':'';
+  $('#win-sub').textContent=perfect?'Flawless pouring':'Nice pouring';
+  setTimeout(()=>$('#win').classList.add('show'),350);
+  Sfx.win();
+  setTimeout(()=>{
+    $('#win').classList.remove('show');
+    level++;store.set('level',level);
+    loadLevel(level);
+  },1400);
+}
+
+/* ---------- actions ---------- */
+function toast(m){const el=$('#toast');el.textContent=m;el.classList.add('show');
+  clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1500);}
+
+function tryMove(b){
+  const a=sel;if(a<0||a===b){sel=-1;return;}
+  const A=tubes[a].c,B=tubes[b].c;
+  if(!A.length){sel=-1;return;}
+  const c=A[A.length-1];
+  const ok=B.length<CAP&&(B.length===0||B[B.length-1]===c);
+  if(!ok){sel=-1;Sfx.deny();return;}
+  const blk=topBlock(A),space=CAP-B.length;
+  const mv=Math.min(blk,space);
+  sel=-1;
+  undoStack.push({a,b,mv});
+  Sfx.pour();
+  startPour(a,b,mv,()=>{
+    checkWin();
+  });
+}
+
+function doUndo(){
+  if(busy||!undoStack.length||won){Sfx.deny();return;}
+  const u=undoStack.pop();
+  undos=Math.max(0,undos-1);$('#undo-n').textContent=undos;
+  // inverse: move mv units back from b to a (legal by construction)
+  for(let i=0;i<u.mv;i++)tubes[u.a].c.push(tubes[u.b].c.pop());
+  Sfx.ui();
+}
+function doRestart(){
+  if(busy)return;
+  undoStack=[];undos=5;hints=3;
+  $('#undo-n').textContent=5;$('#hint-n').textContent=3;
+  loadLevel(level);Sfx.ui();
+}
+function doHint(){
+  if(busy||won)return;
+  if(hints<=0){toast('No hints left');Sfx.deny();return;}
+  const moves=solve(tubes.map(t=>t.c),60,30000);
+  if(!moves){toast('Solver says: hang on…');return;}
+  hints--;$('#hint-n').textContent=hints;
+  const [a,b]=moves[0];
+  sel=a;Sfx.ui();
+  $('#hint').textContent='pour here →';
+  $('#hint').classList.add('show');
+  setTimeout(()=>$('#hint').classList.remove('show'),1600);
+  // pulse target
+  pulseTube=b;let n=0;const iv=setInterval(()=>{n++;pulseTube=(n%2===0)?b:-1;if(n>5){clearInterval(iv);}},280);
+}
+
+/* ---------- input ---------- */
+cv.addEventListener('pointerdown',e=>{
+  if(busy||won)return;
+  const x=e.clientX,y=e.clientY;
+  let hit=-1;
+  tubes.forEach((t,i)=>{
+    if(x>=t.x&&x<=t.x+TW&&y>=t.y-10&&y<=t.y+TH+14)hit=i;
+  });
+  if(hit<0){sel=-1;return;}
+  if(sel===-1){
+    if(!tubes[hit].c.length){Sfx.deny();return;}
+    sel=hit;Sfx.pick();
+  } else {
+    tryMove(hit);
+  }
+});
+
+/* ---------- sound ---------- */
+const Sfx={
+  ctx:null,
+  ensure(){if(!this.ctx){try{this.ctx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+    if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume();},
+  tone(f,dur,type='sine',vol=.15,slide){
+    if(!this.ctx)return;const t0=this.ctx.currentTime;
+    const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+    o.type=type;o.frequency.setValueAtTime(f,t0);
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,t0+dur);
+    g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+    o.connect(g).connect(this.ctx.destination);o.start(t0);o.stop(t0+dur+.05);},
+  pick(){this.tone(620,.06,'square',.08);},
+  deny(){this.tone(180,.09,'square',.08);},
+  pour(){this.noise(.3,.12);this.tone(300,.25,'sine',.06,180);},
+  win(){[523,659,784,1047].forEach((f,i)=>this.tone(f,.22,'triangle',.16,null,.09*i));},
+  ui(){this.tone(620,.04,'square',.05);},
+  noise(dur,vol=.2){
+    if(!this.ctx)return;const t0=this.ctx.currentTime;
+    const n=Math.floor(this.ctx.sampleRate*dur);
+    const buf=this.ctx.createBuffer(1,n,this.ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    const src=this.ctx.createBufferSource();src.buffer=buf;
+    const f=this.ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=900;
+    const g=this.ctx.createGain();g.gain.value=vol;
+    src.connect(f).connect(g).connect(this.ctx.destination);src.start(t0);}
+};
+
+/* ---------- render ---------- */
+let t0=performance.now();
+function render(now){
+  const dt=Math.min((now-t0)/1000,.05);t0=now;
+  stepAnim(dt);
+  ctx.clearRect(0,0,W,Hh);
+  tubes.forEach((t,i)=>{
+    const lift=(sel===i)?-14:0;
+    const x=t.x,y=t.y+lift;
+    // pulse target
+    const pul=(pulseTube===i)?Math.sin(now/120)*4:0;
+    // glass
+    ctx.fillStyle='rgba(255,255,255,.06)';
+    roundRect(x-6,y-8,TW+12,TH+16,14);ctx.fill();
+    // liquid
+    const n=t.c.length;
+    const segH=(TH-16)/CAP;
+    for(let k=0;k<n;k++){
+      const isHidden=t.hidden;
+      const col=isHidden?UNKNOWN:COLORS[t.c[k]];
+      const lx=x+4,lw=TW-8;
+      const ly=y+TH-6-(k+1)*segH+1;
+      ctx.fillStyle=col;
+      roundRect(lx,ly,lw,segH-2,5);ctx.fill();
+      // shine
+      ctx.fillStyle='rgba(255,255,255,.18)';
+      roundRect(lx+lw*.62,ly+1,lw*.24,segH-4,4);ctx.fill();
+    }
+    // outline
+    ctx.strokeStyle=sel===i?'rgba(255,200,87,.9)':'rgba(255,255,255,.35)';
+    ctx.lineWidth=sel===i?3:2;
+    if(!t.hidden){ctx.shadowColor='rgba(255,255,255,.25)';ctx.shadowBlur=6;}
+    roundRect(x-6,y-8,TW+12,TH+16,14);ctx.stroke();
+    ctx.shadowBlur=0;
+    // capacity tick
+    if(n===CAP){ctx.fillStyle='rgba(255,255,255,.5)';ctx.beginPath();ctx.arc(x+TW/2,y-14,3,0,7);ctx.fill();}
+    // pulse ring for hint target
+    if(pulseTube===i){
+      ctx.strokeStyle='rgba(255,200,87,.9)';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(x+TW/2,y+TH/2,TW*.72+Math.sin(now/150)*5,0,7);ctx.stroke();
+    }
+    void pul;void lerp;
+  });
+  // pour stream
+  if(anim){
+    const a=tubes[anim.a],b=tubes[anim.b];
+    const prog=Math.min(1,anim.t/(anim.dur*.7));
+    const x1=a.x+TW/2,y1=a.y-16;
+    const x2=b.x+TW/2,y2=b.y+TH-6-((b.c.length+anim.mv*prog)/CAP)*(TH-16);
+    ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=5;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(x1,y1);
+    ctx.quadraticCurveTo((x1+x2)/2+30,Math.min(y1,y2),(x2),(y2));
+    ctx.stroke();
+  }
+  requestAnimationFrame(render);
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+
+/* ---------- buttons ---------- */
+$('#btn-undo').addEventListener('click',()=>{Sfx.ensure();doUndo();});
+$('#btn-restart').addEventListener('click',()=>{Sfx.ensure();doRestart();});
+$('#btn-hint').addEventListener('click',()=>{Sfx.ensure();doHint();});
+$('#btn-dbg').addEventListener('click',()=>{
+  const d=$('#dbg');const on=d.style.display!=='block';
+  d.style.display=on?'block':'none';
+  if(on){const P=levelParams(level);
+    d.textContent=`L${level} C${P.colors} N${P.colors+P.empties} hidden:${P.hidden?'Y':'N'} moves:${tubes.map(t=>t.c.length).join(',')}`;
+  }
+});
+document.body.addEventListener('pointerdown',()=>Sfx.ensure(),{once:true});
+
+/* ---------- debug mode ---------- */
+const DBG=new URLSearchParams(location.search).has('debug');
+if(DBG){$('#btn-dbg').style.display='flex';}
+
+/* ---------- boot ---------- */
+cv.style.position='fixed';cv.style.inset='0';
+loadLevel(level);
+window.addEventListener('resize',layoutTubes);
+requestAnimationFrame(function loop(now){t0=t0||now;render(now);requestAnimationFrame(loop);});
+</script>
+</body>
+</html>
